@@ -14,6 +14,31 @@ El repositorio incluye los módulos basicos que permiten la integración de indi
 #### El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos
 
 
+# ‼  Cómo Empezar ‼ 
+
+Requisitos:
+
+Paquetes de Python necesarios: 
+
+ > pip install -r requirements.txt
+
+- json
+
+- pandas
+
+- ta (para indicadores técnicos)
+
+- yfinance (para obtener datos de Yahoo Finance)
+
+- PyQt5 (si se desea utilizar la interfaz gráfica)
+
+
+## ⚙️ Configuración Inicial: ⚙️
+- Registra una API Key en Capital.com y habilita la autenticación de dos factores.
+- Configura las credenciales en el archivo EthConfig.py.
+- Ejecuta el script EthOperator.py para iniciar el bot 🗿
+
+
 # 💽 Módulos y Funciones 
 
 ### ⚙️ 1. EthConfig.py - Configuración Global
@@ -118,28 +143,5 @@ profitLevel: Nivel de take profit.
 status: Estado de la posición (abierta, cerrada, etc.).
 
 
-# ‼  Cómo Empezar ‼ 
-
-Requisitos:
-
-Paquetes de Python necesarios: 
-
- > pip install -r requirements.txt
-
-- json
-
-- pandas
-
-- ta (para indicadores técnicos)
-
-- yfinance (para obtener datos de Yahoo Finance)
-
-- PyQt5 (si se desea utilizar la interfaz gráfica)
-
-
-## ⚙️ Configuración Inicial: ⚙️
-- Registra una API Key en Capital.com y habilita la autenticación de dos factores.
-- Configura las credenciales en el archivo EthConfig.py.
-- Ejecuta el script EthOperator.py para iniciar el bot 🗿
 
 
