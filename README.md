@@ -5,14 +5,13 @@ diseñado para facilitar el desarrollo y la automatización de estrategias de tr
 
 El repositorio incluye los módulos basicos que permiten la integración de indicadores técnicos para la toma de decisiones de compra o venta, así como la gestión de posiciones abiertas y el seguimiento de su rentabilidad. Además, se pueden ajustar las estrategias de trading a través de modelos de aprendizaje automático, optimizando las decisiones comerciales según el estado del mercado.
 
+#  Lista De Bots funcionales :
+- 🗿 EthOperator - Ethereum bot - Bullysh 
 
 
-🗃️ Estructura del Proyecto
+# 🗃️ Estructura del Proyecto : 
 
-El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos:
-
-  🐍 Módulos Python: Scripts que gestionan la conexión con la API de Capital.com, operaciones de trading, análisis de mercado, y gestión de configuraciones.
-  📑 Archivo JSON: Usado para almacenar las posiciones abiertas y su estado.
+#### El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos
 
 
 # 💽 Módulos y Funciones 
@@ -102,6 +101,7 @@ Proporciona información sobre el estado actual de los mercados, como precios, t
 Archivo JSON que almacena las posiciones abiertas, incluyendo detalles sobre las órdenes activas y su estado actual.
 
 Contenido:
+
 dealReference: Identificador único de la operación.
 direction: Dirección de la operación (compra/venta).
 epic: Activo relacionado (por ejemplo, "SILVER").
@@ -133,6 +133,6 @@ Paquetes de Python necesarios:
 ## ⚙️ Configuración Inicial: ⚙️
 - Registra una API Key en Capital.com y habilita la autenticación de dos factores.
 - Configura las credenciales en el archivo EthConfig.py.
-- Ejecuta el script EthSession.py para iniciar la sesión y autenticarte con la API.
+- Ejecuta el script EthOperator.py para iniciar el bot 🗿
 
 
