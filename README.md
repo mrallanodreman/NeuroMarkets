@@ -1,22 +1,23 @@
 # NeuroMarkets 
 
 
-diseñado para facilitar el desarrollo y la automatización de estrategias de trading basadas en el análisis avanzado de datos de mercado y el uso de modelos predictivos. Utiliza la API de Capital.com para realizar operaciones de trading, gestionar posiciones y acceder a datos de mercado en tiempo real.
+diseñado para facilitar el desarrollo y la automatización de estrategias de trading basadas en el análisis avanzado de datos de mercado y el uso de Modelos de HiddenMarkov. Utiliza la API de Capital.com para realizar operaciones de trading, gestionar posiciones y acceder a datos de mercado en tiempo real.
 
-El repositorio incluye varios módulos que permiten la integración de indicadores técnicos (como RSI, MACD, ATR) para la toma de decisiones de compra o venta, así como la gestión de posiciones abiertas y el seguimiento de su rentabilidad. Además, se pueden ajustar las estrategias de trading a través de modelos de aprendizaje automático, optimizando las decisiones comerciales según el estado del mercado.
+El repositorio incluye los módulos basicos que permiten la integración de indicadores técnicos para la toma de decisiones de compra o venta, así como la gestión de posiciones abiertas y el seguimiento de su rentabilidad. Además, se pueden ajustar las estrategias de trading a través de modelos de aprendizaje automático, optimizando las decisiones comerciales según el estado del mercado.
 
 
 
-# 🗃️ Estructura del Proyecto
+🗃️ Estructura del Proyecto
+
 El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos:
 
-Módulos Python: Scripts que gestionan la conexión con la API de Capital.com, operaciones de trading, análisis de mercado, y gestión de configuraciones.
-Archivo JSON: Usado para almacenar las posiciones abiertas y su estado.
+ 🐍 Módulos Python: Scripts que gestionan la conexión con la API de Capital.com, operaciones de trading, análisis de mercado, y gestión de configuraciones.
+  📑 Archivo JSON: Usado para almacenar las posiciones abiertas y su estado.
 
 
-Módulos y Funciones
+# 💽 Módulos y Funciones 
 
-1. EthConfig.py - Configuración Global
+1. # EthConfig.py # - Configuración Global
 Define las configuraciones globales del proyecto, como la clave de API, la URL base de la API y otros parámetros esenciales para la conexión.
 
 Funciones:
