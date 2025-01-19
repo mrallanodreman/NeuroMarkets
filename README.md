@@ -114,12 +114,17 @@ status: Estado de la posición (abierta, cerrada, etc.).
 ###  ‼  Cómo Empezar ‼ 
 Requisitos:
 
->Paquetes de Python necesarios:
->requests
->json
->pandas
->ta (para indicadores técnicos)
->yfinance (para obtener datos de Yahoo Finance)
->PyQt5 (si se desea utilizar la interfaz gráfica)
+Paquetes de Python necesarios:  > pip install -r requirements.txt
+
+- json
+
+- pandas
+
+- ta (para indicadores técnicos)
+
+- yfinance (para obtener datos de Yahoo Finance)
+
+- PyQt5 (si se desea utilizar la interfaz gráfica)
+
 
 
