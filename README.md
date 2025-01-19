@@ -1,4 +1,4 @@
-# NeuroMarkets 
+# NeuroMarkets                     https://discord.gg/VBJWJZVdSH               
 
 
 diseñado para facilitar el desarrollo y la automatización de estrategias de trading basadas en el análisis avanzado de datos de mercado y el uso de Modelos de HiddenMarkov. Utiliza la API de Capital.com para realizar operaciones de trading, gestionar posiciones y acceder a datos de mercado en tiempo real.
@@ -75,7 +75,7 @@ Contenido:
 - stopLevel: Nivel de stop loss.
 - profitLevel: Nivel de take profit.
 - status: Estado de la posición (abierta, cerrada, etc.).
-https://discord.gg/VBJWJZVdSH
+
 
 
 
