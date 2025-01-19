@@ -42,12 +42,15 @@ Este módulo establece y mantiene una sesión activa con la API de Capital.com p
 Funciones:
 
 >create_session(api_key, api_password)
+
 Inicia una nueva sesión utilizando la clave de API y la contraseña proporcionada. La sesión es necesaria para interactuar con la API.
 
 >get_session_details()
+
 Recupera detalles de la sesión actual, como el token de autenticación y el ID de la cuenta activa.
 
 >refresh_session()
+
 Mantiene la sesión activa o la renueva si ha expirado, garantizando que se pueda continuar operando sin interrupciones.
 
 
@@ -55,16 +58,20 @@ Mantiene la sesión activa o la renueva si ha expirado, garantizando que se pued
 Este módulo se encarga de realizar las operaciones de trading: abrir, cerrar posiciones y colocar órdenes. Permite la ejecución de transacciones en los mercados de forma automatizada.
 
 Funciones:
-open_position(direction, epic, size, stop_level, profit_level)
+>open_position(direction, epic, size, stop_level, profit_level)
+
 Abre una posición de trading (compra o venta) en el mercado, con parámetros como el tamaño de la posición, el nivel de stop loss y el nivel de take profit.
 
-close_position(deal_reference)
+>close_position(deal_reference)
+
 Cierra una posición abierta previamente utilizando el identificador de la operación.
 
-place_order(order_type, epic, size, level)
+>place_order(order_type, epic, size, level)
+
 Coloca una orden de compra o venta en el mercado, especificando si es una orden de tipo Límite o Stop.
 
-get_order_history()
+>get_order_history()
+
 Recupera el historial completo de las órdenes realizadas, proporcionando detalles sobre las transacciones pasadas.
 
 ### ⚙️  4.  EthStrategy.py - Estrategias de Trading
