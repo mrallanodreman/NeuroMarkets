@@ -6,7 +6,8 @@ diseñado para facilitar el desarrollo y la automatización de estrategias de tr
 El repositorio incluye varios módulos que permiten la integración de indicadores técnicos (como RSI, MACD, ATR) para la toma de decisiones de compra o venta, así como la gestión de posiciones abiertas y el seguimiento de su rentabilidad. Además, se pueden ajustar las estrategias de trading a través de modelos de aprendizaje automático, optimizando las decisiones comerciales según el estado del mercado.
 
 
-Estructura del Proyecto
+
+# 🗃️ Estructura del Proyecto
 El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos:
 
 Módulos Python: Scripts que gestionan la conexión con la API de Capital.com, operaciones de trading, análisis de mercado, y gestión de configuraciones.
