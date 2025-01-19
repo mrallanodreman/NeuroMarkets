@@ -1,4 +1,4 @@
-# NeuroMarkets            -------------------------         https://discord.gg/VBJWJZVdSH               
+# NeuroMarkets        https://discord.gg/VBJWJZVdSH               
 
 
 diseñado para facilitar el desarrollo y la automatización de estrategias de trading basadas en el análisis avanzado de datos de mercado y el uso de Modelos de HiddenMarkov. Utiliza la API de Capital.com para realizar operaciones de trading, gestionar posiciones y acceder a datos de mercado en tiempo real.
@@ -47,7 +47,6 @@ Define las configuraciones globales del proyecto, como la clave de API, la URL b
 ### ⚙️ 2. EthSession.py - Gestión de Sesiones de Trading
 
 Este módulo establece y mantiene una sesión activa con la API de Capital.com para realizar solicitudes de trading. Es fundamental para la autenticación y el manejo de la sesión.
-
 
 
 
