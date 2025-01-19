@@ -134,13 +134,13 @@ Archivo JSON que almacena las posiciones abiertas, incluyendo detalles sobre las
 
 Contenido:
 
->dealReference: Identificador único de la operación.
-direction: Dirección de la operación (compra/venta).
-epic: Activo relacionado (por ejemplo, "SILVER").
-size: Tamaño de la posición.
-stopLevel: Nivel de stop loss.
-profitLevel: Nivel de take profit.
-status: Estado de la posición (abierta, cerrada, etc.).
+- dealReference: Identificador único de la operación.
+- direction: Dirección de la operación (compra/venta).
+- epic: Activo relacionado (por ejemplo, "SILVER").
+- size: Tamaño de la posición.
+- stopLevel: Nivel de stop loss.
+- profitLevel: Nivel de take profit.
+- status: Estado de la posición (abierta, cerrada, etc.).
 
 
 
