@@ -79,3 +79,11 @@ Contenido:
 
 
 
+
+---
+
+## **Recursos Adicionales para Markdown**
+- **Guía Completa de Markdown**: [Guía de Markdown](https://www.markdownguide.org/)
+- **Emojis en Markdown**: [Emojis en GitHub](https://emoji.github.io/)
+
+Con estas opciones, puedes dar formato a tu README.md y hacerlo más legible y organizado en **GitHub** o cualquier otro editor que soporte **Markdown**.
