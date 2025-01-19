@@ -81,5 +81,3 @@ https://discord.gg/VBJWJZVdSH
 
 
 ---
-
-## **  [Texto del enlace]([URL](https://discord.gg/VBJWJZVdSH))  **
