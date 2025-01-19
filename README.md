@@ -29,7 +29,7 @@ Guarda la configuración personalizada del usuario, incluyendo la clave de API y
 validate_api_key(api_key)
 Verifica que la clave de API proporcionada sea válida y tenga los permisos necesarios para operar con la API.
 
-# ----------------
+# 
 2. EthSession.py - Gestión de Sesiones de Trading
 Este módulo establece y mantiene una sesión activa con la API de Capital.com para realizar solicitudes de trading. Es fundamental para la autenticación y el manejo de la sesión.
 
