@@ -86,14 +86,16 @@ Este módulo permite obtener y analizar datos de mercado en tiempo real, además
 
 Funciones:
 >get_real_time_data(epic)
+
 Obtiene el precio en tiempo real de un activo específico, como acciones, criptomonedas, o commodities. El epic es el identificador del activo (por ejemplo, "SILVER", "BTCUSD").
 
 >get_historical_data(epic, from_date, to_date)
+
 Recupera datos históricos sobre el precio de un activo, útil para análisis técnico y backtesting.
 
 >get_market_info()
-Proporciona información sobre el estado actual de los mercados, como precios, tendencias y volúmenes de operaciones.
 
+Proporciona información sobre el estado actual de los mercados, como precios, tendencias y volúmenes de operaciones.
 
 
 ### ⚙️  6. position_tracker.json - Seguimiento de Posiciones
@@ -107,3 +109,9 @@ size: Tamaño de la posición.
 stopLevel: Nivel de stop loss.
 profitLevel: Nivel de take profit.
 status: Estado de la posición (abierta, cerrada, etc.).
+
+
+###  ‼  Cómo Empezar ‼ 
+Requisitos:
+Python 3.7 o superior.
+
