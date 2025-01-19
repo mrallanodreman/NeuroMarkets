@@ -111,7 +111,7 @@ profitLevel: Nivel de take profit.
 status: Estado de la posición (abierta, cerrada, etc.).
 
 
-###  ‼  Cómo Empezar ‼ 
+# ‼  Cómo Empezar ‼ 
 
 Requisitos:
 
