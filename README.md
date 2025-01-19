@@ -130,4 +130,9 @@ Paquetes de Python necesarios:
 - PyQt5 (si se desea utilizar la interfaz gráfica)
 
 
+## ⚙️ Configuración Inicial: ⚙️
+Registra una API Key en Capital.com y habilita la autenticación de dos factores.
+Configura las credenciales en el archivo EthConfig.py.
+Ejecuta el script EthSession.py para iniciar la sesión y autenticarte con la API.
+
 
