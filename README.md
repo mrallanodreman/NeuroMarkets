@@ -25,10 +25,12 @@ Funciones:
 
 Carga configuraciones desde un archivo, como la clave de API y los parámetros del servidor de Capital.com.
 
-save_config(config_data, file_path)
+>save_config(config_data, file_path)
+
 Guarda la configuración personalizada del usuario, incluyendo la clave de API y otros ajustes necesarios.
 
-validate_api_key(api_key)
+>validate_api_key(api_key)
+
 Verifica que la clave de API proporcionada sea válida y tenga los permisos necesarios para operar con la API.
 
 # 
