@@ -75,11 +75,11 @@ Contenido:
 - stopLevel: Nivel de stop loss.
 - profitLevel: Nivel de take profit.
 - status: Estado de la posición (abierta, cerrada, etc.).
-
+https://discord.gg/VBJWJZVdSH
 
 
 
 
 ---
 
-## ** 💲 Allan Odreman **
+## **  [Texto del enlace]([URL](https://discord.gg/VBJWJZVdSH))  **
