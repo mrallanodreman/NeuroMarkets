@@ -20,7 +20,9 @@ El proyecto se organiza en varios módulos que interactúan entre sí para ofrec
 Define las configuraciones globales del proyecto, como la clave de API, la URL base de la API y otros parámetros esenciales para la conexión.
 
 Funciones:
-load_config(file_path)
+
+>load_config(file_path)
+
 Carga configuraciones desde un archivo, como la clave de API y los parámetros del servidor de Capital.com.
 
 save_config(config_data, file_path)
