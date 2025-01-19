@@ -112,9 +112,12 @@ status: Estado de la posición (abierta, cerrada, etc.).
 
 
 ###  ‼  Cómo Empezar ‼ 
+
 Requisitos:
 
-Paquetes de Python necesarios:  > pip install -r requirements.txt
+Paquetes de Python necesarios: 
+
+ > pip install -r requirements.txt
 
 - json
 
