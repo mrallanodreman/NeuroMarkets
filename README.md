@@ -11,12 +11,12 @@ El repositorio incluye los módulos basicos que permiten la integración de indi
 
 El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos:
 
- 🐍 Módulos Python: Scripts que gestionan la conexión con la API de Capital.com, operaciones de trading, análisis de mercado, y gestión de configuraciones.
+  🐍 Módulos Python: Scripts que gestionan la conexión con la API de Capital.com, operaciones de trading, análisis de mercado, y gestión de configuraciones.
   📑 Archivo JSON: Usado para almacenar las posiciones abiertas y su estado.
 
 
 # 💽 Módulos y Funciones 
-1.  EthConfig.py - Configuración Global
+⚙️ 1. EthConfig.py - Configuración Global
 Define las configuraciones globales del proyecto, como la clave de API, la URL base de la API y otros parámetros esenciales para la conexión.
 
 Funciones:
@@ -29,7 +29,7 @@ Guarda la configuración personalizada del usuario, incluyendo la clave de API y
 validate_api_key(api_key)
 Verifica que la clave de API proporcionada sea válida y tenga los permisos necesarios para operar con la API.
 
-
+# ----------------
 2. EthSession.py - Gestión de Sesiones de Trading
 Este módulo establece y mantiene una sesión activa con la API de Capital.com para realizar solicitudes de trading. Es fundamental para la autenticación y el manejo de la sesión.
 
