@@ -16,7 +16,8 @@ El proyecto se organiza en varios módulos que interactúan entre sí para ofrec
 
 
 # 💽 Módulos y Funciones 
-⚙️ 1. EthConfig.py - Configuración Global
+
+### ⚙️ 1. EthConfig.py - Configuración Global
 Define las configuraciones globales del proyecto, como la clave de API, la URL base de la API y otros parámetros esenciales para la conexión.
 
 Funciones:
