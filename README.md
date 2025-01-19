@@ -72,46 +72,31 @@ Recupera el historial completo de las órdenes realizadas, proporcionando detall
 Define y aplica estrategias de trading basadas en datos históricos o en tiempo real. Este módulo permite ajustar y optimizar las estrategias de inversión.
 
 Funciones:
-apply_strategy(data, strategy)
+>apply_strategy(data, strategy)
 Aplica una estrategia de trading predefinida (como RSI, medias móviles, etc.) a los datos de mercado para generar señales de compra o venta.
 
 evaluate_strategy(strategy, historical_data)
 Evalúa el rendimiento de una estrategia utilizando datos históricos, analizando las decisiones pasadas y los resultados obtenidos.
 
-optimize_strategy(strategy, data)
+>optimize_strategy(strategy, data)
 Optimiza los parámetros de la estrategia de trading utilizando técnicas de backtesting para encontrar la configuración que ofrezca los mejores resultados.
 
 ### ⚙️ 5. DataEth.py - Gestión de Datos de Mercado
 Este módulo permite obtener y analizar datos de mercado en tiempo real, además de recuperar información histórica de precios y sentiment analysis.
 
 Funciones:
-get_real_time_data(epic)
+>get_real_time_data(epic)
 Obtiene el precio en tiempo real de un activo específico, como acciones, criptomonedas, o commodities. El epic es el identificador del activo (por ejemplo, "SILVER", "BTCUSD").
 
-get_historical_data(epic, from_date, to_date)
+>get_historical_data(epic, from_date, to_date)
 Recupera datos históricos sobre el precio de un activo, útil para análisis técnico y backtesting.
 
-get_market_info()
+>get_market_info()
 Proporciona información sobre el estado actual de los mercados, como precios, tendencias y volúmenes de operaciones.
 
 
 
-
-
-5. DataEth.py - Gestión de Datos de Mercado
-Este módulo permite obtener y analizar datos de mercado en tiempo real, además de recuperar información histórica de precios y sentiment analysis.
-
-Funciones:
-get_real_time_data(epic)
-Obtiene el precio en tiempo real de un activo específico, como acciones, criptomonedas, o commodities. El epic es el identificador del activo (por ejemplo, "SILVER", "BTCUSD").
-
-get_historical_data(epic, from_date, to_date)
-Recupera datos históricos sobre el precio de un activo, útil para análisis técnico y backtesting.
-
-get_market_info()
-Proporciona información sobre el estado actual de los mercados, como precios, tendencias y volúmenes de operaciones.
-
-6. position_tracker.json - Seguimiento de Posiciones
+### ⚙️  6. position_tracker.json - Seguimiento de Posiciones
 Archivo JSON que almacena las posiciones abiertas, incluyendo detalles sobre las órdenes activas y su estado actual.
 
 Contenido:
