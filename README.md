@@ -134,7 +134,7 @@ Archivo JSON que almacena las posiciones abiertas, incluyendo detalles sobre las
 
 Contenido:
 
-dealReference: Identificador único de la operación.
+>dealReference: Identificador único de la operación.
 direction: Dirección de la operación (compra/venta).
 epic: Activo relacionado (por ejemplo, "SILVER").
 size: Tamaño de la posición.
