@@ -1,0 +1,14 @@
+PyQt5
+config
+hmmlearn
+joblib
+matplotlib
+numpy
+pandas
+pytz
+requests
+sip
+scikit-learn
+ta
+websocket-client
+yfinance
