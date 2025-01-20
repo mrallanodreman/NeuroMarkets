@@ -28,7 +28,7 @@ class TradingOperator(QObject):
         self.scaler_mean = scaler_stats["mean"]
         self.scaler_scale = scaler_stats["scale"]
         self.capital_ops = CapitalOP()  # Ensure authenticated here if required
-        self.account_id = "260136346534097182"  # Example value
+        self.account_id = "TU ACCOUNT ID"  # Example value
         self.capital_ops.set_account_id(self.account_id)  # Configurar el ID de cuenta en CapitalOP
 
         self.positions = []  # Placeholder for positions
