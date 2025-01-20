@@ -104,5 +104,6 @@ Contenido:
 - Que son los Modelos de Hiden markov ?       | https://www.youtube.com/watch?v=lnOkyvWcAtQ
 - Que es un indicador tecnico?                | RSI : https://www.youtube.com/watch?v=m-r-ZfD7emc
 - Que es un indicador tecnico?                | MACD : https://www.youtube.com/watch?v=feXocPTRxMQ
-- Como se usa el volumen dentro del traiding? | https://www.youtube.com/watch?v=vBGtXSmtkDk 
+- Como se usa el volumen dentro del traiding? | https://www.youtube.com/watch?v=vBGtXSmtkDk
+- Documentacion de la api de Capital | https://open-api.capital.com/ 
 
