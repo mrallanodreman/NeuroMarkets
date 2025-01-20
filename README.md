@@ -85,7 +85,6 @@ Define y aplica estrategias de trading basadas en datos históricos o en tiempo 
 Este módulo permite obtener y analizar datos de mercado en tiempo real, además de recuperar información histórica de precios y sentiment analysis.
 
 
-
 ### ⚙️  6. position_tracker.json - Seguimiento de Posiciones
 Archivo JSON que almacena las posiciones abiertas, incluyendo detalles sobre las órdenes activas y su estado actual.
 
@@ -99,8 +98,10 @@ Contenido:
 - profitLevel: Nivel de take profit.
 - status: Estado de la posición (abierta, cerrada, etc.).
 
-
-
-
-
 ---
+### 📚  Recursos Adicionales 📚  
+
+- Que son los Modelos de Hiden markov ? : https://www.youtube.com/watch?v=lnOkyvWcAtQ
+- Que es un indicador tecnico? | RSI : https://www.youtube.com/watch?v=m-r-ZfD7emc
+- QUe es un indicador tecnico? | MACD : https://www.youtube.com/watch?v=feXocPTRxMQ 
+
