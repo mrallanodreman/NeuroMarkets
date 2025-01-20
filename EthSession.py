@@ -284,7 +284,7 @@ if __name__ == "__main__":
         # Autenticación inicial
 
         capital_ops.ensure_authenticated()
-        capital_ops.set_account_id("260136346534097182")  # Cambia al ID de cuenta deseado
+        capital_ops.set_account_id("TU ACCOUNT ID")  # Cambia al ID de cuenta deseado
 
         print("[INFO] El programa está corriendo. Presiona Ctrl+C para detenerlo.")
         while True:
