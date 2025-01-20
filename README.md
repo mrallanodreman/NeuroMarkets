@@ -57,9 +57,10 @@ Puedes instalarlos de forma automatica con el comando
 
 > EthOperator.py - Linea 31 -  self.account_id = "Tu account ID "
 
-- Abre una posicion de prueba y confirma ejecutando nuevamente EthSession.py que estas obteniendo las posiciones correcamente para tu cuenta 
+- Abre una posicion de prueba y confirma ejecutando nuevamente EthSession.py que estas obteniendo las posiciones correcamente para tu cuenta
+  Una vez confirmado que tu EthSessions.py obtiene correctamente el saldo y las posicones de tu cuenta, estas listo. 
 
-## Ejecuta EthOperator.py ##
+>  Ejecuta EthOperator.py 
 
 
 # 💽 Módulos y Funciones 
