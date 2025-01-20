@@ -13,11 +13,14 @@ El repositorio incluye los módulos basicos que permiten la integración de indi
 
 #### El proyecto se organiza en varios módulos que interactúan entre sí para ofrecer las funcionalidades necesarias de trading, análisis y gestión de datos
 
-Necesitas crear una carpeta llamada /Reports donde deben ir los archivos : 
+###### ⚠️  Necesitas crear una carpeta llamada /Reports  e incluir los siguientes archivos  ⚠️  
 
  > ETH_USD_historical_data.json  
 
  > ETH_USD_1Y1HM2.json
+
+###### ⚠️ El resto de archivos deben estar en una misma ubicacion juntos ⚠️  
+
 
 
 # ‼  Cómo Empezar ‼ 
