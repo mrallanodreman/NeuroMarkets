@@ -25,8 +25,11 @@ El repositorio incluye los módulos basicos que permiten la integración de indi
 
 # ‼  Cómo Empezar ‼ 
 
-Requisitos:
+Requisitos: 
 
+- Crea un Enviroment unicamente para tu Bot. 
+- instala las dependencias
+  
 Paquetes de Python necesarios: 
 
  > pip install -r requirements.txt
