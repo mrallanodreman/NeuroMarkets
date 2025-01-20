@@ -32,8 +32,6 @@ Requisitos:
   
 Paquetes de Python necesarios: 
 
- > pip install -r requirements.txt
-
 - json
 
 - pandas
@@ -44,6 +42,9 @@ Paquetes de Python necesarios:
 
 - PyQt5 (si se desea utilizar la interfaz gráfica)
 
+Puedes instalarlos de forma automatica con el comando 
+
+> pip install -r requirements.txt 
 
 ## ⚙️ Configuración Inicial: ⚙️
 
