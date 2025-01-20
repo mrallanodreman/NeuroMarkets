@@ -43,11 +43,20 @@ Paquetes de Python necesarios:
 
 
 ## ⚙️ Configuración Inicial: ⚙️
+
 - Registra una API Key en Capital.com y habilita la autenticación de dos factores.
 - Configura las credenciales en el archivo EthConfig.py.
 - Ejecuta el script EthSession.py para iniciar la autenticacion y obtener el AccountID de tu cuenta de trading.
-- Al obtener el AccountId Configuralo dentro de : 
-⚙️  > EthSession  - Linea 287 - capital_ops.set_account_id (" Tu Account ID " ) ⚙️ 
+- Al obtener el AccountId Configuralo dentro de los sigueintes archivos : 
+  
+> EthSession.py  - Linea 287 - capital_ops.set_account_id (" Tu Account ID " )
+
+> EthOperator.py - Linea 31 -  self.account_id = "Tu account ID "
+
+- Abre una posicion de prueba y confirma ejecutando nuevamente EthSession.py que estas obteniendo las posiciones correcamente para tu cuenta 
+
+## Ejecuta EthOperator.py ##
+
 
 # 💽 Módulos y Funciones 
 
