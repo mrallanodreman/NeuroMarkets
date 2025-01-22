@@ -136,22 +136,24 @@ Modifica las siguientes variables según tus necesidades de análisis:
 
 Ticker y Parámetros de Mercado
 
-ticker: El símbolo del activo que deseas analizar. Ejemplo: "ETH-USD".
-interval: Intervalo de tiempo entre puntos de datos. Ejemplo: "1h" (una hora).
-period: Duración del histórico que quieres usar. Ejemplo: "1y" (un año).
+- ticker: El símbolo del activo que deseas analizar. Ejemplo: "ETH-USD".
+- interval: Intervalo de tiempo entre puntos de datos. Ejemplo: "1h" (una hora).
+- period: Duración del histórico que quieres usar. Ejemplo: "1y" (un año).
 
 Características (Features)
 Asegúrate de incluir todos los indicadores y columnas relevantes para tu modelo HMM.
 Ejemplo:
 
-> features = ['Close', 'Volume', 'MACD', 'RSI', 'ATR']
+###### Ejemplo: 
+
+    features = ['Close', 'Volume', 'MACD', 'RSI', 'ATR']
 
 ### 🔎 ModelViewer - Visor de modelos Pkl. 
 Es una herramienta para que poder verificar que el entranmiento es correcto. ChatGpt puede analziar cada entrenamiento sin problemas. 
 
-###### Directorio base donde buscar el modelo
+###### Directorio base donde buscar el modelo 
 
-    base_directory = 
+    base_directory = "  Aqui debes colocar la ruta a tu Modelo.pkl "
 
 > ModelViewer.py
 
