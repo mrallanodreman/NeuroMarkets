@@ -119,6 +119,8 @@ Esto puedes configurarlo en el archivo
 
 > DataEth.py
 
+
+#
 ### ------ Como Comprender los Estados de prediccion ----- 
 
 - means_: Representa el valor promedio de cada característica para cada estado.
