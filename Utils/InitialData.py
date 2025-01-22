@@ -8,10 +8,9 @@ from ta.volatility import AverageTrueRange
 import json
 import yfinance as yf
 import pytz
-import pickle
 
 # Configurable variables
-ticker = "ETH-USD"
+ticker = "SOL-USD"
 interval = "1h"
 period = "1y"  # Período solicitado
 segment_days = 10  # Límite por segmento debido a restricciones de Yahoo Finance
@@ -21,7 +20,11 @@ def process_data(data, ticker):
     Procesa los datos descargados y genera un DataFrame limpio.
     """
     # Depuración para verificar estructura inicial
+    print("[DEBUG] Datos iniciales descargados:")
     print(data.head())
+    print("[DEBUG] Columnas iniciales:", data.columns)
+    print("[DEBUG] Índice inicial:", data.index)
+
     # Aplanar columnas si tienen MultiIndex
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = ['_'.join(map(str, col)).strip() for col in data.columns]
@@ -165,36 +168,19 @@ def scale_features(data, scaler_stats, model_features):
     scaled_data['Datetime'] = datetime_column
 
     return scaled_data
-
-
-MODEL_FILE = "NeoModel.pkl"
-
-# Cargar modelo (que contiene scaler_stats y features)
-with open(MODEL_FILE, 'rb') as f:
-    model_data = pickle.load(f)
-
-# Extraer scaler_stats y model_features del modelo
-scaler_stats = model_data['scaler_stats']
-model_features = model_data['features']
+    
 
 # Flujo principal
 data = yf.download(ticker, interval=interval, period=period)
 if data.empty:
     print("[ERROR] No se obtuvieron datos.")
 else:
-    # 1) Procesar y calcular indicadores
-    data = process_data(data, ticker)
+    data = process_data(data, ticker)  # Pasar el ticker como argumento
     data = calculate_indicators(data, period_days=365, buffer_days=68)
-
-    # 2) Escalar los datos con las estadísticas y características del modelo
-    print("[INFO] Aplicando escalado real al DataFrame...")
-    data = scale_features(data, scaler_stats, model_features)
-
-    # 3) Preparar datos para exportar (fechas → milisegundos)
     data = prepare_for_export(data)
 
-    # 4) Exportar
-    output_file = f'/"ubicacion donde se guardan los datos historicos"/{ticker.replace("-", "_")}_1Y1HM2.json'
+    # Exportar
+    output_file = f'/home/hobeat/MoneyMakers/Reports/{ticker.replace("-", "_")}_1Y1HM2.json'
     with open(output_file, 'w') as f:
         json.dump({"data": data.to_dict(orient="records")}, f, indent=4)
     print(f"[INFO] Archivo generado: {output_file}")
