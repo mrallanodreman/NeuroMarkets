@@ -104,7 +104,10 @@ Contenido:
 
 Entender los estados (clusters de comportamiento)
 
-Cada estado representa un patrón recurrente en las características del mercado (Close, Volume, MACD, RSI, ATR). Analizando las estadísticas del modelo (means_ y covars_), puedes identificar qué tipo de comportamiento o volatilidad corresponde a cada estado:
+Cada estado representa un patrón recurrente en las características del mercado (Close, Volume, MACD, RSI, ATR). Analizando las estadísticas del modelo (means_ y covars_), puedes identificar qué tipo de comportamiento o volatilidad corresponde a cada estado
+
+Cada activo, accion  o crypto a analizar, necesita un modelo nuevo, ya que estos pueden detectar los patrones unicamente basados en los datos de entrenamiento 
+
 
 
 🌟 TrainingRoom
@@ -120,8 +123,8 @@ Esto puedes configurarlo en el archivo
 > DataEth.py
 
 
-#
-### ------ Como Comprender los Estados de prediccion ----- 
+### ❕ Como Comprender los Estados de prediccion ❕ 
+
 
 - means_: Representa el valor promedio de cada característica para cada estado.
 - covars_: Representa la variabilidad (varianzas) de cada característica en cada estado.
