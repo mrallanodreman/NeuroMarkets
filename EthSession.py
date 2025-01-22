@@ -148,7 +148,7 @@ class CapitalOP:
             if response.status_code == 200:
                 print(f"[INFO] Posición cerrada exitosamente. dealId: {deal_id}")
                 return response.json()  # Podrías retornar el JSON resultante
-            else:
+            else: 
                 print(f"[ERROR] Error al cerrar la posición {deal_id}: {response.status_code} - {response.text}")
                 return None
         except Exception as e:

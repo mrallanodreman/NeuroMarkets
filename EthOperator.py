@@ -627,8 +627,8 @@ if __name__ == "__main__":
         print("[INFO] Inicializando operador de trading...")
         
         # Cargar modelo, características, estrategia y datos
-        MODEL_FILE = "ETHM1.pkl"
-        DATA_FILE = "/home/hobeat/MoneyMakers/Reports/ETH_USD_1Y1HM2.json"
+        MODEL_FILE = "NeoModel.pkl"
+        DATA_FILE = "Ubicacion del archivo 1Y1HM2 que DataEth Genera "
 
         with open(MODEL_FILE, 'rb') as file:
             model_data = pickle.load(file)
