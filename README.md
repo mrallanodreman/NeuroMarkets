@@ -160,7 +160,7 @@ Es una herramienta para que poder verificar que el entranmiento es correcto. Cha
 > ModelViewer.py
 
 
-
+#
 ### 📚  Recursos Adicionales 📚  
 
 - Que son los Modelos de Hiden markov ?       | https://www.youtube.com/watch?v=lnOkyvWcAtQ
