@@ -120,7 +120,7 @@ Esto puedes configurarlo en el archivo
 
 > DataEth.py
 
------- Como Comprender los Estados de prediccion ----- 
+### ------ Como Comprender los Estados de prediccion ----- 
 
 - means_: Representa el valor promedio de cada característica para cada estado.
 - covars_: Representa la variabilidad (varianzas) de cada característica en cada estado.
@@ -130,9 +130,9 @@ Esto puedes configurarlo en el archivo
 - Estado 2: Correcciones o consolidaciones.
 - Estado 3: Máxima volatilidad o movimientos abruptos.
 
-🎯 Cómo usarlo:
+### 🎯 Cómo usarlo:
 
-🔧 Variables Configurables
+### 🔧 Variables Configurables
 Modifica las siguientes variables según tus necesidades de análisis:
 
 Ticker y Parámetros de Mercado
