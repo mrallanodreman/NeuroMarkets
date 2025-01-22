@@ -57,6 +57,7 @@ Puedes instalarlos de forma automatica con el comando
 
 > EthOperator.py - Linea 31 -  self.account_id = "Tu account ID "
 
+
 - Abre una posicion de prueba y confirma ejecutando nuevamente EthSession.py que estas obteniendo las posiciones correcamente para tu cuenta
   Una vez confirmado que tu EthSessions.py obtiene correctamente el saldo y las posicones de tu cuenta, estas listo. 
 
@@ -99,6 +100,56 @@ Contenido:
 - status: Estado de la posición (abierta, cerrada, etc.).
 
 ---
+### Entrenamiento y Administracion de Modelos 🚀 TrainingRoom & Model Viewer:
+
+1. Entender los estados (clusters de comportamiento)
+
+Cada estado representa un patrón recurrente en las características del mercado (Close, Volume, MACD, RSI, ATR). Analizando las estadísticas del modelo (means_ y covars_), puedes identificar qué tipo de comportamiento o volatilidad corresponde a cada estado:
+
+
+
+🌟 TrainingRoom
+TrainingRoom es tu asistente para entrenar modelos Hidden Markov Model (HMM) usando datos financieros como precios, volumen, indicadores técnicos (RSI, MACD, ATR) y más. Aquí hay un resumen de lo que puedes hacer:
+
+1️⃣ Entrenamiento de Modelos
+
+Carga un archivo JSON con tus datos históricos procesados.
+Configura el número de estados del modelo HMM para capturar patrones de mercado.
+Entrena el modelo y guarda las probabilidades de transición, promedios y escalas de las características.
+
+means_: Representa el valor promedio de cada característica para cada estado.
+covars_: Representa la variabilidad (varianzas) de cada característica en cada estado.
+Estados: Cada uno corresponde a un régimen de mercado o patrón, como:
+Estado 0: Mercado en calma (baja volatilidad y cambios pequeños).
+Estado 1: Mercado con tendencias fuertes (alta volatilidad y volumen).
+Estado 2: Correcciones o consolidaciones.
+Estado 3: Máxima volatilidad o movimientos abruptos.
+
+2️⃣ Visualización de Estados
+
+Analiza la matriz de transición del modelo.
+Observa la evolución de los precios junto con los estados predichos.
+Utiliza gráficos dinámicos para explorar tendencias.
+3️⃣ Resolviendo Problemas de Transiciones
+Antes enfrentábamos problemas con estados "pegados" en transiciones. Ahora, con una matriz de transición regularizada, los estados capturan mejor la dinámica del mercado. 💪
+
+🎯 Cómo usarlo:
+
+🔧 Variables Configurables
+Modifica las siguientes variables según tus necesidades de análisis:
+
+Ticker y Parámetros de Mercado
+
+ticker: El símbolo del activo que deseas analizar. Ejemplo: "ETH-USD".
+interval: Intervalo de tiempo entre puntos de datos. Ejemplo: "1h" (una hora).
+period: Duración del histórico que quieres usar. Ejemplo: "1y" (un año).
+
+Características (Features)
+Asegúrate de incluir todos los indicadores y columnas relevantes para tu modelo HMM.
+Ejemplo:
+
+> features = ['Close', 'Volume', 'MACD', 'RSI', 'ATR']
+
 ### 📚  Recursos Adicionales 📚  
 
 - Que son los Modelos de Hiden markov ?       | https://www.youtube.com/watch?v=lnOkyvWcAtQ
