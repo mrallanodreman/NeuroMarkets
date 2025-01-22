@@ -115,24 +115,20 @@ es tu asistente para entrenar modelos Hidden Markov Model (HMM) usando datos fin
 1️⃣ Entrenamiento de Modelos
 
 Carga un archivo JSON con tus datos históricos procesados.
-Configura el número de estados del modelo HMM para capturar patrones de mercado.
-Entrena el modelo y guarda las probabilidades de transición, promedios y escalas de las características.
 
-means_: Representa el valor promedio de cada característica para cada estado.
-covars_: Representa la variabilidad (varianzas) de cada característica en cada estado.
-Estados: Cada uno corresponde a un régimen de mercado o patrón, como:
-Estado 0: Mercado en calma (baja volatilidad y cambios pequeños).
-Estado 1: Mercado con tendencias fuertes (alta volatilidad y volumen).
-Estado 2: Correcciones o consolidaciones.
-Estado 3: Máxima volatilidad o movimientos abruptos.
+Esto puedes configurarlo en el archivo 
 
-2️⃣ Visualización de Estados
+> DataEth.py
 
-Analiza la matriz de transición del modelo.
-Observa la evolución de los precios junto con los estados predichos.
-Utiliza gráficos dinámicos para explorar tendencias.
-3️⃣ Resolviendo Problemas de Transiciones
-Antes enfrentábamos problemas con estados "pegados" en transiciones. Ahora, con una matriz de transición regularizada, los estados capturan mejor la dinámica del mercado. 💪
+------ Como Comprender los Estados de prediccion ----- 
+
+- means_: Representa el valor promedio de cada característica para cada estado.
+- covars_: Representa la variabilidad (varianzas) de cada característica en cada estado.
+- Estados: Cada uno corresponde a un régimen de mercado o patrón, como:
+- Estado 0: Mercado en calma (baja volatilidad y cambios pequeños).
+- Estado 1: Mercado con tendencias fuertes (alta volatilidad y volumen).
+- Estado 2: Correcciones o consolidaciones.
+- Estado 3: Máxima volatilidad o movimientos abruptos.
 
 🎯 Cómo usarlo:
 
