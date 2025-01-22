@@ -6,7 +6,8 @@ Diseñado para facilitar el desarrollo y la automatización de estrategias de tr
 El repositorio incluye los módulos basicos que permiten la integración de indicadores técnicos para la toma de decisiones de compra o venta, así como la gestión de posiciones abiertas y el seguimiento de su rentabilidad. Además, se pueden ajustar las estrategias de trading a través de modelos de aprendizaje automático, optimizando las decisiones comerciales según el estado del mercado.
 
 #  Lista De Bots funcionales :
-- 🗿 EthOperator - Ethereum bot - Bullysh 
+- 🗿 EthOperator - Ethereum bot - Bullysh Only 
+- 🦈 SharkBoy - Ethereum Bot - Shorts Only 
 
 
 # 🗃️ Estructura del Proyecto : 
