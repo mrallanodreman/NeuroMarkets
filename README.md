@@ -155,6 +155,8 @@ Es una herramienta para que poder verificar que el entranmiento es correcto. Cha
 
     base_directory = "  Aqui debes colocar la ruta a tu Modelo.pkl "
 
+### Luego puedes ejecutar 
+
 > ModelViewer.py
 
 
