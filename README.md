@@ -109,7 +109,8 @@ Cada estado representa un patrón recurrente en las características del mercado
 
 
 🌟 TrainingRoom
-TrainingRoom es tu asistente para entrenar modelos Hidden Markov Model (HMM) usando datos financieros como precios, volumen, indicadores técnicos (RSI, MACD, ATR) y más. Aquí hay un resumen de lo que puedes hacer:
+
+es tu asistente para entrenar modelos Hidden Markov Model (HMM) usando datos financieros como precios, volumen, indicadores técnicos (RSI, MACD, ATR) y más. Aquí hay un resumen de lo que puedes hacer:
 
 1️⃣ Entrenamiento de Modelos
 
