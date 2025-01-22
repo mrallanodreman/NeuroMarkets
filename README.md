@@ -102,15 +102,14 @@ Contenido:
 ---
 ### Entrenamiento y Administracion de Modelos 🚀 TrainingRoom & Model Viewer:
 
-1. Entender los estados (clusters de comportamiento)
+Entender los estados (clusters de comportamiento)
 
 Cada estado representa un patrón recurrente en las características del mercado (Close, Volume, MACD, RSI, ATR). Analizando las estadísticas del modelo (means_ y covars_), puedes identificar qué tipo de comportamiento o volatilidad corresponde a cada estado:
 
 
-
 🌟 TrainingRoom
 
-es tu asistente para entrenar modelos Hidden Markov Model (HMM) usando datos financieros como precios, volumen, indicadores técnicos (RSI, MACD, ATR) y más. Aquí hay un resumen de lo que puedes hacer:
+Es tu asistente para entrenar modelos Hidden Markov Model (HMM) usando datos financieros como precios, volumen, indicadores técnicos (RSI, MACD, ATR) y más. Aquí hay un resumen de lo que puedes hacer:
 
 1️⃣ Entrenamiento de Modelos
 
@@ -146,6 +145,17 @@ Asegúrate de incluir todos los indicadores y columnas relevantes para tu modelo
 Ejemplo:
 
 > features = ['Close', 'Volume', 'MACD', 'RSI', 'ATR']
+
+### 🔎 ModelViewer - Visor de modelos Pkl. 
+Es una herramienta para que poder verificar que el entranmiento es correcto. ChatGpt puede analziar cada entrenamiento sin problemas. 
+
+###### Directorio base donde buscar el modelo
+
+    base_directory = 
+
+> ModelViewer.py
+
+
 
 ### 📚  Recursos Adicionales 📚  
 
