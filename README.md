@@ -7,8 +7,11 @@ El repositorio incluye los módulos basicos que permiten la integración de indi
 
 #  Lista De Bots funcionales :
 - 🗿 EthOperator - Ethereum bot - Bullysh Only 
-- 🦈 SharkBoy - Ethereum Bot - Shorts Only 
+- 🦈 SharkBoy - Ethereum Bot - Shorts Only
 
+#  Lista De funciones generales  :
+- Soporte de Api Capital
+- Soporte MultiCuenta
 
 # 🗃️ Estructura del Proyecto : 
 
@@ -73,7 +76,6 @@ Define las configuraciones globales del proyecto, como la clave de API, la URL b
 ### ⚙️ 2. EthSession.py - Gestión de Sesiones de Trading
 
 Este módulo establece y mantiene una sesión activa con la API de Capital.com para realizar solicitudes de trading. Es fundamental para la autenticación y el manejo de la sesión.
-
 
 
 ### ⚙️  3. EthOperator.py - Operaciones de Trading
