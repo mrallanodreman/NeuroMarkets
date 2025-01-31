@@ -12,3 +12,4 @@ scikit-learn
 ta
 websocket-client
 yfinance
+colorama
