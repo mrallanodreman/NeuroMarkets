@@ -10,4 +10,4 @@ DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
 
 
 #DEMO  https://demo-api-capital.backend-capital.com/
-#REAL  : https://api-capital.backend-capital.com/
+#REAL  https://api-capital.backend-capital.com/
