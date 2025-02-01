@@ -1,4 +1,3 @@
-import pickle
 import time
 import pandas as pd
 import os
@@ -9,6 +8,9 @@ from PyQt5.QtCore import QObject, pyqtSignal
 import threading
 from threading import Lock  # Importa Lock para manejo de hilos
 import ta
+import pickle  # Asegura que pickle esté disponible
+
+
 
 
 # Lógica para decisiones
@@ -21,7 +23,7 @@ class TradingOperator(QObject):
 
         self.model = model
         self.features = features
-        self.strategy = strategy  # La estrategia se pasa como argumento
+        self.strategy = strategy  # La estratefifgia se pasa como argumento
         self.log_open_positions = []
         self.log_process_data = []
         self.previous_state = None  # Inicializa el estado previo como None
@@ -355,7 +357,7 @@ class TradingOperator(QObject):
 
             # 🔹 5) Cerrar posiciones si la estrategia lo indica
             for action in to_close:
-                if action["action"] == "sell":
+                if action["action"] == "Close":
                     deal_id = action.get("dealId")
                     if deal_id:
                         capital_ops.close_position(deal_id)
@@ -462,10 +464,10 @@ class TradingOperator(QObject):
             )
 
             # Ejecutar acción si corresponde
-            if decision["action"] == "sell":
+            if decision["action"] == "Short":
                 self.capital_ops.open_position(
                     market_id=decision["market_id"],
-                    direction=decision["action"].upper(),
+                direction="SELL",  # Confirmamos que es una venta en corto
                     size=decision["size"],
                     stop_loss=decision.get("stop_loss"),
                     take_profit=decision.get("take_profit")
@@ -493,8 +495,8 @@ class TradingOperator(QObject):
     def print_log(self):
         """Imprime el log detallado de las operaciones, formateado por origen."""
         print("[INFO] Registro de operaciones detallado:")
-        
-        if not self.log_open_positions and not self.log_process_data:  # Verificar si ambos logs están vacíos
+
+        if not self.log_open_positions and not self.log_process_data:
             print("[INFO] Los logs están vacíos. No hay datos para imprimir.")
             return
 
@@ -505,25 +507,37 @@ class TradingOperator(QObject):
                 print("=" * 40)
                 print("[ORIGEN] process_open_positions")
                 print(f"Fecha: {entry['datetime']}")
-                print(f"Precio actual: {entry['current_price']:.2f}")
+
+                try:
+                    current_price = float(entry['current_price'])
+                    print(f"Precio actual: {current_price:.2f}")
+                except (ValueError, TypeError):
+                    print(f"[ERROR] current_price no es un número válido: {entry['current_price']}")
+
                 print(f"Estado predicho por el modelo: {entry['state']}")
                 print(f"Estado previo: {entry['previous_state']}")
                 print(f"Posiciones evaluadas:")
+
                 for pos in entry.get("positions", []):
                     print(f"  - Instrumento: {pos.get('instrument', 'N/A')}")
                     print(f"  - Dirección: {pos.get('direction', 'N/A')}")
                     print(f"    Tamaño: {pos.get('size', 'N/A')}")
                     print(f"    Precio de apertura: {pos.get('price', 'N/A')}")
-                    
-                    # Ganancia/Pérdida con colores de fondo
-                    gain_loss = pos.get("upl", "N/A")
-                    if isinstance(gain_loss, (int, float)):  # Asegúrate de que sea numérico
+
+                    try:
+                        hours_open = float(pos.get("hours_open", 0))
+                        print(f"    ⏳ Horas abiertas: {hours_open:.1f}")
+                    except (ValueError, TypeError):
+                        print(f"[ERROR] hours_open no es un número válido: {pos.get('hours_open')}")
+
+                    try:
+                        gain_loss = float(pos.get("upl", 0))
                         if gain_loss < 0:
-                            print(f"\033[41m    Ganancia/Pérdida: {gain_loss}\033[0m")  # Fondo rojo
+                            print(f"\033[41m    Ganancia/Pérdida: {gain_loss:.2f}\033[0m")  # Fondo rojo
                         else:
-                            print(f"\033[42m    Ganancia/Pérdida: {gain_loss}\033[0m")  # Fondo verde
-                    else:
-                        print(f"    Ganancia/Pérdida: {gain_loss}")  # Para valores no numéricos
+                            print(f"\033[42m    Ganancia/Pérdida: {gain_loss:.2f}\033[0m")  # Fondo verde
+                    except (ValueError, TypeError):
+                        print(f"[ERROR] upl no es un número válido: {pos.get('upl')}")
 
                 print(f"Acciones tomadas: {entry['actions_taken']}")
                 print(f"Características usadas: {entry['features']}")
@@ -537,24 +551,29 @@ class TradingOperator(QObject):
                 print("[ORIGEN] process_data")
                 print(f"Fecha: {entry['datetime']}")
                 print(f"Precio actual Escalado: {entry['current_price']:.2f}")
-                print(f"Estado predicho por el modelo: {entry['state']}")  # Mostrar estado actual
-                print(f"Estado previo: {entry['previous_state']}")  # Mostrar estado previo
+                print(f"Estado predicho por el modelo: {entry['state']}")
+                print(f"Estado previo: {entry['previous_state']}")
                 print(f" 💲 Balance disponible: {entry['balance']:.2f}")
                 print(f" 📍Posiciones abiertas:")
                 for pos in entry.get("positions", []):
                     print(f"  - Dirección: {pos.get('direction', 'N/A')}")
                     print(f"    Tamaño: {pos.get('size', 'N/A')}")
                     print(f"    Precio de apertura: {pos.get('price', 'N/A')}")
+                    
+                    # Agregar `hours_open`
+                    hours_open = pos.get("hours_open", "N/A")
+                    print(f"    ⏳ Horas abiertas: {hours_open:.1f}")
+
                     print(f"  💰  Ganancia/Pérdida: {pos.get('upl', 'N/A')}")
 
                 print(f"Decisión tomada: {entry['decision']}")
                 print(f"Valores desescalados:")
                 for key, value in entry["descaled_values"].items():
-                    if key != "Datetime":  # Omitir duplicados de fecha
+                    if key != "Datetime":
                         print(f"  {key}: {value}")
                 print("=" * 40)
 
-        # Limpiar ambos logs después de imprimir
+        # Limpiar logs después de imprimir
         self.log_open_positions = []
         self.log_process_data = []
 
@@ -585,14 +604,17 @@ if __name__ == "__main__":
         # Crear DataFrame desde el JSON cargado
         data_frame = pd.DataFrame(raw_data.get('data', []))
 
-        # Configurar estrategia
-        strategy = Strategia(threshold_buy=0, threshold_sell=2)
+        # Inicializar CapitalOP antes de la estrategia
+        capital_ops = CapitalOP()
+
+        # Configurar estrategia pasándole la instancia de CapitalOP
+        strategy = Strategia(capital_ops=capital_ops, threshold_buy=0, threshold_sell=2)
 
         # Crear instancia de TradingOperator
         trading_operator = TradingOperator(
             model=model,
             features=features,
-            strategy=strategy,
+            strategy=strategy,  # Pasar la estrategia con CapitalOP ya incluido
             saldo_update_callback=None,
             scaler_stats=scaler_stats
         )

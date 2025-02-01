@@ -1,10 +1,17 @@
+from EthSession import CapitalOP 
+import pickle
+from datetime import datetime, timezone
+
+capital_ops = CapitalOP()  
+
 class Strategia:
-    def __init__(self, threshold_buy=(1,2), threshold_sell=(0, 2, 3), risk_factor=0.01, 
+    def __init__(self, capital_ops ,threshold_buy=(1,2), threshold_sell=(0, 2, 3), risk_factor=0.01, 
                  margin_protection=0.9, profit_threshold=0.03, stop_loss=0.1, 
                  retracement_threshold=0.01):
         """
         Estrategia de trading mejorada.
         """
+        self.capital_ops = capital_ops
         self.threshold_buy = threshold_buy
         self.threshold_sell = threshold_sell
         self.risk_factor = risk_factor
@@ -13,12 +20,11 @@ class Strategia:
         self.stop_loss = stop_loss
         self.retracement_threshold = retracement_threshold
         self.history = []
-        self.balance = 10
+        self.balance = None 
 
     def decide(self, state, current_price, balance, features, market_id, previous_state=None, open_positions=None):
         leverage = 20  # Apalancamiento
         margin_percentage = 1  # Usamos el 1% del balance disponible como margen
-        max_positions = 2  # Número máximo de posiciones permitidas
         max_deal_size = 0.009  # Tamaño máximo permitido por el mercado
         min_deal_size = 0.009  # Tamaño mínimo permitido
 
@@ -27,16 +33,24 @@ class Strategia:
         if current_price <= 0 or balance <= 0:
             return {"action": "hold", "size": 0, "reason": "Precio o balance inválido"}
 
-        num_open_positions = len(open_positions) if open_positions else 0
-        if num_open_positions >= max_positions:
-            print(f"[INFO] Límite de posiciones alcanzado ({max_positions}).")
+        # Obtener la cantidad de posiciones abiertas por dirección
+        num_buy_positions = sum(1 for p in open_positions if p["direction"] == "BUY") if open_positions else 0
+        num_sell_positions = sum(1 for p in open_positions if p["direction"] == "SELL") if open_positions else 0
+
+        # Obtener los límites desde CapitalOP
+        max_buy_positions = self.capital_ops.max_buy_positions  # Límite para BUY
+        max_sell_positions = self.capital_ops.max_sell_positions  # Límite para SELL
+
+        if num_buy_positions >= max_buy_positions and num_sell_positions >= max_sell_positions:
+            print(f"[INFO] Límite de posiciones alcanzado (BUY: {max_buy_positions}, SELL: {max_sell_positions}).")
             return {"action": "hold", "size": 0, "reason": "Límite de posiciones abiertas alcanzado"}
+
 
         # Indicadores
         rsi = features.get("RSI", 0)
         macd = features.get("MACD", 0)
         atr = features.get("ATR", 0)
-        volume_change = features.get("VolumeChange", 0)
+        volume_change = features.get("VolumeChange", 0) 
 
         def calculate_position_size(balance, leverage, current_price, risk_factor, min_deal_size, max_deal_size, margin_protection=0.9):
             margin_to_use = balance * risk_factor * margin_protection
@@ -54,7 +68,7 @@ class Strategia:
             if balance >= margin_required:
                 print(f"[INFO] Oportunidad de debilidad detectada (RSI: {rsi}, MACD: {macd}). Abriendo posición corta: {size:.6f} unidades a precio {current_price}")
                 return {
-                    "action": "sell",  # Operación de venta (short)
+                    "action": "Short",  # Operación de venta (short)
                     "size": size,
                     "market_id": market_id,
                     "margin_required": margin_required,
@@ -70,7 +84,7 @@ class Strategia:
             if balance >= margin_required:
                 print(f"[INFO] Oportunidad de debilidad por volumen decreciente y ATR bajo. Abriendo posición corta: {size:.6f} unidades a precio {current_price}")
                 return {
-                    "action": "sell",  # Operación de venta (short)
+                    "action": "Short",  # Operación de venta (short)
                     "size": size,
                     "market_id": market_id,
                     "margin_required": margin_required,
@@ -86,7 +100,7 @@ class Strategia:
             if balance >= margin_required:
                 print(f"[INFO] Retroceso detectado desde un pico (RSI: {rsi}), oportunidad de vender. Abriendo posición corta: {size:.6f} unidades a precio {current_price}")
                 return {
-                    "action": "sell",  # Operación de venta (short)
+                    "action": "Short",  # Operación de venta (short)
                     "size": size,
                     "market_id": market_id,
                     "margin_required": margin_required,
@@ -102,7 +116,7 @@ class Strategia:
             if balance >= margin_required:
                 print(f"[INFO] Oportunidad de debilidad detectada (RSI: {rsi}, MACD: {macd}). Abriendo posición corta: {size:.6f} unidades a precio {current_price}")
                 return {
-                    "action": "sell",  # Operación de venta (short)
+                    "action": "Short",  # Operación de venta (short)
                     "size": size,
                     "market_id": market_id,
                     "margin_required": margin_required,
@@ -118,7 +132,7 @@ class Strategia:
             if balance >= margin_required:
                 print(f"[INFO] Señal de debilidad con transición a calma (RSI: {rsi}), abriendo posición corta: {size:.6f} unidades a precio {current_price}")
                 return {
-                    "action": "sell",  # Operación de venta (short)
+                    "action": "Short",  # Operación de venta (short)
                     "size": size,
                     "market_id": market_id,
                     "margin_required": margin_required,
@@ -137,6 +151,8 @@ class Strategia:
         Retorna una lista de acciones a tomar.
         """
         to_close = []
+        now_time = datetime.now(timezone.utc)  # Obtener la hora actual en UTC
+
 
         for position in positions:
             deal_id = position.get("dealId")
@@ -144,11 +160,31 @@ class Strategia:
             entry_price = position.get("price")
             size = position.get("size")
             upl = position.get("upl", 0)  # Usar el UPL directamente
+            created_date_utc = position.get("createdDateUTC", "")
+
 
             # Verificar que todos los datos esenciales estén presentes
-            if not deal_id or not direction or not entry_price or not size:
-                print(f"[WARNING] Posición incompleta. dealId: {deal_id}, direction: {direction}, price: {entry_price}. Manteniendo posición.")
+            if not deal_id or not direction or not entry_price or not size or not created_date_utc:
+                print(f"[WARNING] Posición incompleta. dealId: {deal_id}, direction: {direction}, price: {entry_price}, createdDateUTC: {created_date_utc}. Manteniendo posición.")
                 continue
+
+            # Convertir createdDateUTC a datetime en UTC
+            try:
+                created_time = datetime.strptime(created_date_utc, "%Y-%m-%dT%H:%M:%S.%f")
+                created_time = created_time.replace(tzinfo=timezone.utc)  # Asegurar que es UTC
+
+                # Calcular el tiempo abierto en horas
+                hours_open = (now_time - created_time).total_seconds() / 3600
+
+            except Exception as e:
+                print(f"[ERROR] No se pudo calcular la antigüedad de la posición {deal_id}: {e}")
+                continue
+
+            # 📌 Incluir `hours_open` en la posición
+            position["hours_open"] = hours_open  # Guardar en la posición para `print_log`
+
+            print(f"[INFO] Evaluando posición {deal_id} - Abierta hace {float(hours_open):.1f} horas - UPL: {float(upl):.5f}")
+
 
             # Usar upl como current_profit
             current_profit = upl
@@ -170,28 +206,28 @@ class Strategia:
                 print(f"[DEBUG] Current Profit es negativo o cero ({current_profit * 100:.2f}%). No se actualiza Max Profit.")
 
 
-            # Emergency Exit: Detectar pequeñas ganancias positivas
-            if 0 < current_profit <= 0.01:  # Ganancia entre 0% y 1%
+            # ✅ Emergency Exit: Solo para posiciones con 15 a 24 horas de antigüedad
+            if 15 <= hours_open <= 24 and 0.5 <= upl <= 2.0:
                 rsi = features.get("RSI", 0)
                 macd = features.get("MACD", 0)
                 volume_change = features.get("VolumeChange", 0)
 
                 if state in [0, 1] and (rsi < 50 or macd < 0 or volume_change <= 0):
-                    print(f"[INFO] Emergency Exit: Cierre por pequeña ganancia: {current_profit * 100:.2f}%")
+                    print(f"[INFO] Emergency Exit: Cierre por ganancia ({upl * 100:.2f}%) en posición {deal_id} (Abierta hace {hours_open:.1f} horas)")
+
                     to_close.append({
-                        "action": "sell",
+                        "action": "Close",
                         "dealId": deal_id,
                         "size": size,
                         "reason": "emergency_exit"
                     })
-                    continue
 
             # Regla para transiciones 0 → 3
             if current_profit > 0:
                 if previous_state == 0 and state == 3:
                     print(f"[INFO] Cierre inmediato por transición 0 → 3 con ganancia: {current_profit * 100:.2f}%")
                     to_close.append({
-                        "action": "sell",
+                        "action": "Close",
                         "dealId": deal_id,
                         "size": size,
                         "reason": "state_0_to_3"
@@ -203,7 +239,7 @@ class Strategia:
                 if previous_state == 3 and state == 3:
                     print(f"[INFO] Cierre inmediato por estado consecutivo 3 → 3 con ganancia: {current_profit * 100:.2f}%")
                     to_close.append({
-                        "action": "sell",
+                        "action": "Close",
                         "dealId": deal_id,
                         "size": size,
                         "reason": "state_3_consecutive"
@@ -229,7 +265,7 @@ class Strategia:
                 # Cierre si todas las condiciones están cumplidas
                 print(f"[INFO] Cierre por retroceso positivo detectado: {current_profit * 100:.2f}%")
                 to_close.append({
-                    "action": "sell",
+                    "action": "Close",
                     "dealId": deal_id,
                     "size": size,
                     "reason": "retracement_positive"
@@ -239,7 +275,7 @@ class Strategia:
             if current_profit >= self.profit_threshold:
                 print(f"[INFO] Cierre por ganancia alcanzada: {current_profit * 100:.2f}%")
                 to_close.append({
-                    "action": "sell",
+                    "action": "Close",
                     "dealId": deal_id,
                     "size": size,
                     "reason": "profit_threshold"
@@ -250,7 +286,7 @@ class Strategia:
                 if (previous_state, state) in [(3, 2), (2, 0), (3, 0)]:
                     print(f"[INFO] Cierre por cambio de estados con ganancia: {previous_state} → {state}")
                     to_close.append({
-                        "action": "sell",
+                        "action": "Close",
                         "dealId": deal_id,
                         "size": size,
                         "reason": "state_decrease_positive"
