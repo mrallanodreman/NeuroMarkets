@@ -82,7 +82,7 @@ Este módulo establece y mantiene una sesión activa con la API de Capital.com p
 Este módulo se encarga de realizar las operaciones de trading: abrir, cerrar posiciones y colocar órdenes. Permite la ejecución de transacciones en los mercados de forma automatizada.
 
 ### ⚙️  4.  EthStrategy.py - Estrategias de Trading
-Define y aplica estrategias de trading basadas en datos históricos o en tiempo real. Este módulo permite ajustar y optimizar las estrategias de inversión.
+Define y aplica estrategias de trading basadas en datos históricos en tiempo real. Este módulo permite ajustar y optimizar las estrategias de inversión.
 
 
 ### ⚙️ 5. DataEth.py - Gestión de Datos de Mercado
