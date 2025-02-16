@@ -1,247 +1,219 @@
 import os
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-from ta.momentum import RSIIndicator
-from ta.trend import EMAIndicator
-from ta.volatility import BollingerBands
-from ta.momentum import StochasticOscillator
-
-
-from ta.trend import MACD
-from ta.volatility import AverageTrueRange
 import json
-import yfinance as yf
+import requests
+from datetime import datetime, timedelta
 import pytz
 import pickle
+from ta.momentum import StochasticOscillator
+from ta.trend import MACD, EMAIndicator
+from ta.volatility import BollingerBands, AverageTrueRange
+from EthSession import CapitalOP  # Importar autenticación desde EthSession
+from VisorTecnico import TechnicalAnalysis  # Usamos el cálculo de RSI correcto
 
-# Variables configurables
-ticker = "ETH-EUR"
-interval = "1h"
-# Para el período de interés se definirá period_days y además buffer_days para los cálculos de indicadores.
-period_days = 365      # Período final deseado
-buffer_days = 14       # Días adicionales para cálculos de indicadores (ventanas móviles, etc.)
-# Total de días a descargar será la suma
-total_days = period_days + buffer_days
+# Configuración
+ticker = "ETHUSD"
+interval = "HOUR"  # Capital.com usa "HOUR", "MINUTE", "DAY"
+period_days = 365              # Días finales que nos interesan para exportar
+buffer_days = 30               # Buffer adicional para cálculos de indicadores
+total_days = period_days + buffer_days  # Total de días a descargar (395 en este ejemplo)
+segment_days = 10  # Segmentos de descarga
 
-# Límite por segmento debido a restricciones de Yahoo Finance
-segment_days = 10
+# Inicializar API Capital.com
+capital_ops = CapitalOP()
+capital_ops.ensure_authenticated()
 
-def download_data_in_segments(ticker, interval, start_date, end_date, segment_days):
+def get_epic(symbol):
     """
-    Descarga datos de Yahoo Finance en segmentos (por ejemplo, de 10 días) y los concatena.
+    Obtiene el EPIC correspondiente a un símbolo de mercado (ej. ETH-EUR).
     """
-    current_date = start_date
+    print(f"[INFO] Buscando EPIC para {symbol} en Capital.com...")
+    markets_url = f"{capital_ops.base_url}/api/v1/markets?searchTerm={symbol}"
+    headers = {
+        "Content-Type": "application/json",
+        "X-CAP-API-KEY": capital_ops.api_key,
+        "CST": capital_ops.session_token,
+        "X-SECURITY-TOKEN": capital_ops.x_security_token
+    }
+    response = requests.get(markets_url, headers=headers)
+    if response.status_code == 200:
+        markets = response.json().get("markets", [])
+        if markets:
+            epic = markets[0].get("epic")
+            print(f"[INFO] EPIC encontrado: {epic}")
+            return epic
+        else:
+            print("[ERROR] No se encontró un EPIC para este símbolo.")
+            return None
+    else:
+        print(f"[ERROR] Fallo en la búsqueda de EPIC: {response.status_code} - {response.text}")
+        return None
+
+def download_data_capital(epic, interval, start_date, end_date):
+    """
+    Descarga datos históricos desde Capital.com.
+    """
     all_data = []
+    current_date = start_date
     while current_date < end_date:
         seg_end_date = min(current_date + timedelta(days=segment_days), end_date)
-        print(f"[INFO] Descargando segmento: {current_date.strftime('%Y-%m-%d')} - {seg_end_date.strftime('%Y-%m-%d')}")
-        seg_data = yf.download(ticker,
-                               interval=interval,
-                               start=current_date.strftime('%Y-%m-%d'),
-                               end=seg_end_date.strftime('%Y-%m-%d'))
-        if not seg_data.empty:
-            all_data.append(seg_data)
+        print(f"[INFO] Descargando datos: {current_date.strftime('%Y-%m-%d')} - {seg_end_date.strftime('%Y-%m-%d')}")
+        prices_url = f"{capital_ops.base_url}/api/v1/prices/{epic}?resolution={interval}&from={current_date.strftime('%Y-%m-%dT%H:%M:%S')}&to={seg_end_date.strftime('%Y-%m-%dT%H:%M:%S')}"
+        headers = {
+            "Content-Type": "application/json",
+            "X-CAP-API-KEY": capital_ops.api_key,
+            "CST": capital_ops.session_token,
+            "X-SECURITY-TOKEN": capital_ops.x_security_token
+        }
+        response = requests.get(prices_url, headers=headers)
+        if response.status_code == 200:
+            data = response.json().get("prices", [])
+            if data:
+                all_data.extend(data)
+            else:
+                print(f"[WARNING] No se encontraron datos para {current_date} - {seg_end_date}")
         else:
-            print(f"[WARNING] Segmento vacío: {current_date.strftime('%Y-%m-%d')} - {seg_end_date.strftime('%Y-%m-%d')}")
+            print(f"[ERROR] Fallo en la descarga: {response.status_code} - {response.text}")
         current_date = seg_end_date
     if all_data:
-        data = pd.concat(all_data)
-        data = data[~data.index.duplicated()]
-        return data
+        df = pd.DataFrame(all_data)
+        df.rename(columns={
+            'snapshotTimeUTC': 'Datetime',
+            'openPrice': 'Open',
+            'highPrice': 'High',
+            'lowPrice': 'Low',
+            'closePrice': 'Close',
+            'lastTradedVolume': 'Volume'
+        }, inplace=True)
+        df["Datetime"] = pd.to_datetime(df["Datetime"])
+        df.set_index("Datetime", inplace=True)
+        df.sort_index(inplace=True)
+        return df
     else:
         return pd.DataFrame()
 
-def process_data(data, ticker):
+def calculate_indicators(data, buffer_days=30, recent_days=total_days):
     """
-    Procesa los datos descargados y genera un DataFrame limpio.
+    Calcula indicadores técnicos esenciales y los agrega a los datos.
+    Se realiza sobre los últimos (period_days + buffer_days) días para que el buffer
+    garantice que el primer día de los últimos period_days tenga valores completos.
     """
-    # Depuración para verificar estructura inicial
-    print(data.head())
-    # Aplanar columnas si tienen MultiIndex
-    if isinstance(data.columns, pd.MultiIndex):
-        data.columns = ['_'.join(map(str, col)).strip() for col in data.columns]
-
-    # Generar dinámicamente el column_map basado en el ticker
-    def generate_column_map(ticker):
-        base_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-        return {f"{col}_{ticker}": col for col in base_columns}
-
-    # Generar el column_map específico para el ticker actual
-    column_map = generate_column_map(ticker)
+    print("[INFO] Calculando indicadores esenciales...")
+    # Usamos los últimos 'total_days' (395 días) para calcular los indicadores
+    cutoff_date = data.index.max() - pd.Timedelta(days=recent_days)
+    data = data.loc[data.index >= cutoff_date].copy()
     
-    # Renombrar las columnas usando el column_map
-    data.rename(columns=column_map, inplace=True)
-
-    # Detectar y convertir la clave de tiempo correcta
-    if 'Datetime' in data.columns:
-        time_column = 'Datetime'
-    elif 'Date' in data.columns:
-        time_column = 'Date'
-    elif isinstance(data.index, pd.DatetimeIndex):
-        print("[INFO] Usando el índice como clave de tiempo.")
-        data = data.reset_index()  # Convertir índice a columna
-        time_column = 'Datetime'
-    else:
-        raise ValueError("[ERROR] No se encontró una clave de tiempo válida.")
-
-    # Uniformar la columna de tiempo a 'Datetime'
-    data['Datetime'] = pd.to_datetime(data[time_column], errors='coerce')
-
-    # Asegurar que 'Datetime' sea tz-aware
-    if data['Datetime'].dt.tz is None:
-        data['Datetime'] = data['Datetime'].dt.tz_localize('UTC')
-
-    # Eliminar duplicados y valores inválidos
-    data = data[~data['Datetime'].duplicated()]
-    data.dropna(subset=['Datetime'], inplace=True)
-
-    # Restablecer índice
-    data.reset_index(drop=True, inplace=True)
-
-    # Corregir volúmenes
-    data = correct_volumes(data)
-
-    print("[INFO] Datos procesados correctamente.")
-    return data
-
-
-def correct_volumes(data):
-    """
-    Corrige los volúmenes en 0 mediante interpolación basada en valores válidos anteriores y posteriores.
-    """
-    if 'Volume' not in data.columns:
-        print("[WARNING] Columna 'Volume' no encontrada. Saltando corrección.")
-        return data
-    zero_indices = data[data['Volume'] == 0].index
-    for idx in zero_indices:
-        prev_value = data.loc[:idx, 'Volume'][data['Volume'] != 0].last_valid_index()
-        next_value = data.loc[idx:, 'Volume'][data['Volume'] != 0].first_valid_index()
-        prev_volume = data.loc[prev_value, 'Volume'] if prev_value is not None else 0
-        next_volume = data.loc[next_value, 'Volume'] if next_value is not None else 0
-        corrected_volume = int((prev_volume + next_volume) / 2)
-        data.at[idx, 'Volume'] = corrected_volume
-    print("[INFO] Volúmenes corregidos.")
-    return data
-
-def calculate_indicators(data, period_days=365, buffer_days=14):
-    print("[INFO] Calculando indicadores técnicos...")
-
-    # Calcular RSI
-    rsi_indicator = RSIIndicator(close=data['Close'], window=14)
-    data['RSI'] = rsi_indicator.rsi()
-
-    # Calcular MACD
-    macd = MACD(close=data['Close'])
-    data['MACD'] = macd.macd()
-    data['MACD_Signal'] = macd.macd_signal()
-
-    # Calcular ATR
-    atr = AverageTrueRange(high=data['High'], low=data['Low'], close=data['Close'], window=14)
-    data['ATR'] = atr.average_true_range()
-
-    # Calcular log_return y otras métricas
-    data['log_return'] = np.log(data['Close'] / data['Open'])
-    data['IntraDayVariation'] = (data['High'] - data['Low']) / data['Open']
-    data['AveragePrice'] = (data['High'] + data['Low'] + data['Close']) / 3
-
-    # Calcular EMA_50
-    ema_50 = EMAIndicator(close=data['Close'], window=50)
-    data['EMA_50'] = ema_50.ema_indicator()
-
-    # Calcular Bollinger Bands Width
-    bb = BollingerBands(close=data['Close'], window=20, window_dev=2)
-    data['BB_width'] = (bb.bollinger_hband() - bb.bollinger_lband()) / data['Close']
-
-    # Calcular STOCH
+    # Si los valores son diccionarios, extraer la media
+    for col in ["Close", "Open", "High", "Low"]:
+        if isinstance(data[col].iloc[0], dict):
+            print(f"[INFO] Extrayendo valores medios de precios en {col}...")
+            data[col] = data[col].apply(lambda x: (x["bid"] + x["ask"]) / 2 if isinstance(x, dict) else x)
+    
+    # --- 1️⃣ RSI ---
+    # Calculamos el RSI utilizando el método de VisorTecnico (se usa period=5 y smooth_factor=3)
+    data["RSI"] = TechnicalAnalysis.calculate_rsi(data, period=5, smooth_factor=3)
+    
+    # --- 2️⃣ MACD ---
+    fast_period, slow_period, signal_period = 12, 26, 9
+    data["EMA_12"] = data["Close"].ewm(span=fast_period, adjust=False).mean()
+    data["EMA_26"] = data["Close"].ewm(span=slow_period, adjust=False).mean()
+    data["MACD"] = data["EMA_12"] - data["EMA_26"]
+    data["MACD_Signal"] = data["MACD"].ewm(span=signal_period, adjust=False).mean()
+    
+    # --- 3️⃣ ATR ---
+    atr_period = 14
+    high_low = data["High"] - data["Low"]
+    high_close_prev = abs(data["High"] - data["Close"].shift(1))
+    low_close_prev = abs(data["Low"] - data["Close"].shift(1))
+    tr = pd.concat([high_low, high_close_prev, low_close_prev], axis=1).max(axis=1)
+    data["ATR"] = tr.rolling(window=atr_period, min_periods=1).mean()
+    
+    # --- 4️⃣ VolumeChange ---
+    data["VolumeChange"] = data["Volume"].pct_change().replace([np.inf, -np.inf], 0).fillna(0)
+    
+    # Limpiar NaN y valores extremos
+    data.replace([np.inf, -np.inf], 0, inplace=True)
+    data.fillna(0, inplace=True)
+    
+    # Calcular log_return
+    data['log_return'] = np.log(data['Close'] / data['Close'].shift(1))
+    
+    # Calcular STOCH (usando ta.momentum.StochasticOscillator)
     stoch = StochasticOscillator(high=data['High'], low=data['Low'], close=data['Close'], window=14, smooth_window=3)
     data['STOCH'] = stoch.stoch()
-
-    # Verificación final de columnas
-    expected_columns = ['log_return', 'STOCH', 'EMA_50', 'BB_width']
-    missing_cols = [col for col in expected_columns if col not in data.columns]
-
-    if missing_cols:
-        print(f"[ERROR] Faltan las siguientes columnas en `calculate_indicators()`: {missing_cols}")
-        for col in missing_cols:
-            data[col] = 0  # Rellenamos con ceros para evitar errores.
-
-    print("[INFO] Indicadores calculados correctamente.")
-    print("[DEBUG] Columnas finales en DataFrame:", list(data.columns))  
+    
+    # Calcular EMA de 50 periodos
+    data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()
+    
+    # Calcular ancho de Bandas de Bollinger (BB_width)
+    bb = BollingerBands(close=data['Close'], window=20, window_dev=2)
+    data['BB_width'] = bb.bollinger_wband()
+    
+    print("[INFO] Indicadores esenciales calculados correctamente.")
+    print("[DEBUG] Primeros 10 registros después de calcular indicadores:")
+    print(data[["RSI", "MACD", "ATR", "VolumeChange", "Close"]].head(10))
     return data
 
+def add_scaled_features(data, scaler_stats, model_features):
+    """
+    Para cada característica que el modelo requiere, agrega una nueva columna 'scaled_<feature>'
+    con el valor escalado, dejando intactos los valores crudos.
+    """
+    for i, feature in enumerate(model_features):
+        if feature in data.columns:
+            data[f"scaled_{feature}"] = (data[feature] - scaler_stats["mean"][i]) / scaler_stats["scale"][i]
+        else:
+            print(f"[WARNING] La característica {feature} no se encuentra en los datos.")
+    return data
 
 def prepare_for_export(data):
+    """
+    Prepara los datos antes de exportarlos a JSON.
+    Convierte la columna 'Datetime' a un timestamp en milisegundos.
+    """
     print("[INFO] Preparando datos para exportación...")
-
-    expected_columns = ['log_return', 'STOCH', 'EMA_50', 'BB_width']
-    missing_cols = [col for col in expected_columns if col not in data.columns]
-
-    if missing_cols:
-        print(f"[ERROR] Faltan las siguientes columnas antes de exportar: {missing_cols}")
-        for col in missing_cols:
-            data[col] = 0
-
-    # Convertir las fechas correctamente
     if 'Datetime' in data.columns:
-        data['Datetime'] = data['Datetime'].apply(lambda x: int(x.tz_convert('UTC').timestamp() * 1000))
-
-    print("[INFO] Datos listos para exportar. Columnas finales:", list(data.columns))  
+        data['Datetime'] = data['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
+    print("[INFO] Datos listos para exportar.")
     return data
 
-
-
-
-def scale_features(data, scaler_stats, model_features):
-    """
-    Escala las características del modelo utilizando las estadísticas del escalador.
-    """
-    print("[INFO] Aplicando el escalador a las características del modelo...")
-
-    datetime_column = data['Datetime']
-    extra_columns = [col for col in data.columns if col not in model_features and col != 'Datetime']
-
-    scaled_data = data[model_features].copy()
-    for i, feature in enumerate(model_features):
-        scaled_data[feature] = (scaled_data[feature] - scaler_stats['mean'][i]) / scaler_stats['scale'][i]
-
-    print("[INFO] Escalado aplicado con éxito para las características del modelo.")
-
-    for col in extra_columns:
-        scaled_data[col] = data[col]
-    scaled_data['Datetime'] = datetime_column
-
-    return scaled_data
-
-# Cargar el modelo (que contiene scaler_stats y las características requeridas)
+# Cargar modelo y estadísticas del escalador (usado en el modelo de Markov)
 MODEL_FILE = "msm_model.pkl"
 with open(MODEL_FILE, 'rb') as f:
     model_data = pickle.load(f)
-
 scaler_stats = model_data['scaler_stats']
 model_features = model_data['features']
 
-# Flujo principal
-end_date = datetime.now(pytz.UTC)
-start_date = end_date - timedelta(days=total_days)
-
-print(f"[INFO] Descargando datos desde {start_date.strftime('%Y-%m-%d')} hasta {end_date.strftime('%Y-%m-%d')}")
-data = download_data_in_segments(ticker, interval, start_date, end_date, segment_days)
-
-if data.empty:
-    print("[ERROR] No se obtuvieron datos.")
-else:
-    # 1) Procesar y limpiar los datos
-    data = process_data(data, ticker)
-    # 2) Calcular indicadores técnicos usando los días de buffer
-    data = calculate_indicators(data, period_days=period_days, buffer_days=buffer_days)
-    # 3) Escalar las características según el modelo
-    print("[INFO] Aplicando escalado real al DataFrame...")
-    data = scale_features(data, scaler_stats, model_features)
-    # 4) Preparar los datos para exportar (convertir fechas)
-    data = prepare_for_export(data)
-    # 5) Exportar a JSON
-    output_file = f'/home/hobeat/MoneyMakers/Reports/{ticker.replace("-", "_")}_1Y1HM2.json'
-    with open(output_file, 'w') as f:
-        json.dump({"data": data.to_dict(orient="records")}, f, indent=4)
-    print(f"[INFO] Archivo generado: {output_file}")
+# Obtener EPIC
+epic = get_epic(ticker)
+if epic:
+    # Para el cálculo correcto, descargamos datos para total_days (395 días)
+    # Nota: buffer_months se mantiene solo para la descarga si se requiere (en este caso usamos total_days directamente)
+    end_date = datetime.now(pytz.UTC)
+    start_date = end_date - timedelta(days=total_days)
+    print(f"[INFO] Descargando datos desde {start_date.strftime('%Y-%m-%d')} hasta {end_date.strftime('%Y-%m-%d')}")
+    data = download_data_capital(epic, interval, start_date, end_date)
+    if data.empty:
+        print("[ERROR] No se obtuvieron datos de la API de Capital.com.")
+    else:
+        # Calcular indicadores usando el conjunto completo de total_days (395 días)
+        data = calculate_indicators(data, buffer_days=buffer_days, recent_days=total_days)
+        
+        # Filtrar para quedarnos únicamente con los últimos period_days (365 días)
+        start_filter_date = end_date - timedelta(days=period_days)
+        start_filter_date = pd.Timestamp(start_filter_date).tz_localize(None)
+        print(f"[INFO] Filtrando datos a partir de {start_filter_date.strftime('%Y-%m-%d')}")
+        data = data[data.index >= start_filter_date]
+        
+        # Agregar columnas escaladas para las features utilizadas por el modelo de Markov
+        data = add_scaled_features(data, scaler_stats, model_features)
+        
+        # Preparar datos para exportación (convertir 'Datetime' a timestamp en milisegundos)
+        data = prepare_for_export(data)
+        
+        # Exportar en un único documento JSON
+        output_file = f'/home/hobeat/MoneyMakers/Reports/{ticker.replace("-", "_")}_CapitalData.json'
+        with open(output_file, 'w') as f:
+            json.dump({"data": data.to_dict(orient="records")}, f, indent=4)
+        print(f"[INFO] Archivo generado: {output_file}")

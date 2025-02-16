@@ -17,7 +17,7 @@ class CapitalOP:
         self.account_id = None  # Atributo para almacenar el account_id actual
         # 🔹 Límites de posiciones para cada bot
         self.max_buy_positions = 1   # Límite para EthOperator
-        self.max_sell_positions = 1  # Límite para SharkBoy
+        self.max_sell_positions = 4  # Límite para SharkBoy
 
     def set_account_id(self, account_id):
         """Configura el account_id que se utilizará en las consultas."""
@@ -59,7 +59,6 @@ class CapitalOP:
                 print(f"[ERROR] Error al autenticar: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"[ERROR] Fallo en la autenticación: {e}")
-
 
     def ensure_authenticated(self):
         """Valida que la autenticación sea válida antes de realizar operaciones."""
@@ -134,8 +133,6 @@ class CapitalOP:
             print(f"[ERROR] Fallo al obtener posiciones abiertas: {e}")
             return [], []
 
-
-
     def close_position(self, deal_id):
         """Cierra una posición específica por dealId."""
         try:
@@ -178,11 +175,6 @@ class CapitalOP:
              # Obtener posiciones abiertas actuales
             buy_positions, sell_positions = self.get_open_positions()
         
-            # Verificar si se excede el límite
-            if direction.upper() == "BUY" and len(buy_positions) >= self.max_buy_positions:
-                print(f"[WARNING] Límite de posiciones BUY alcanzado ({self.max_buy_positions}). No se abrirá una nueva posición.")
-                return None
-            
             if direction.upper() == "SELL" and len(sell_positions) >= self.max_sell_positions:
                 print(f"[WARNING] Límite de posiciones SELL alcanzado ({self.max_sell_positions}). No se abrirá una nueva posición.")
                 return None
@@ -319,12 +311,14 @@ class CapitalOP:
 if __name__ == "__main__":
     try:
         capital_ops = CapitalOP()
-
         # Autenticación inicial
-
         capital_ops.ensure_authenticated()
-        capital_ops.set_account_id("260383560551191748")  # Cambia al ID de cuenta deseado
-
+        
+        # Verificamos que el account_id ya haya sido configurado dinámicamente.
+        if not capital_ops.account_id:
+            print("[ERROR] No se ha configurado el account_id. Por favor, ejecute EthConfig para configurar el bot.")
+            exit(1)
+        
         print("[INFO] El programa está corriendo. Presiona Ctrl+C para detenerlo.")
         while True:
             try:
@@ -334,6 +328,5 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"[ERROR] Error en el ciclo principal: {e}")
                 time.sleep(5)
-
     except KeyboardInterrupt:
         print("\n[INFO] Interrupción manual detectada. Programa finalizado.")
