@@ -13,14 +13,14 @@ class Strategia:
         self.stop_loss = stop_loss
         self.retracement_threshold = retracement_threshold
         self.history = []
-        self.balance = None
+        self.balance = 10
 
     def decide(self, state, current_price, balance, features, market_id, previous_state=None, open_positions=None):
         leverage = 20  # Apalancamiento
         margin_percentage = 1  # Usamos el 1% del balance disponible como margen
-        max_positions = 5  # Número máximo de posiciones permitidas
-        max_deal_size = 0.009  # Tamaño máximo permitido por el mercado
-        min_deal_size = 0.009  # Tamaño mínimo permitido
+        max_positions = 1  # Número máximo de posiciones permitidas
+        max_deal_size = 0.0003  # Tamaño máximo permitido por el mercado
+        min_deal_size = 0.0001  # Tamaño mínimo permitido
 
         print(f"[DEBUG] Decidiendo con state={state}, previous_state={previous_state}, precio={current_price}")
 

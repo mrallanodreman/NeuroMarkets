@@ -3,12 +3,9 @@ import time
 import pandas as pd
 import os
 import json
-from EthSession import CapitalOP
-from EthStrategy import Strategia
+from CapitalOperations import CapitalOP
+from Strategy import Strategia
 from PyQt5.QtCore import QObject, pyqtSignal
-import threading
-from threading import Lock  # Importa Lock para manejo de hilos
-import ta
 
 
 # Lógica para decisiones
@@ -28,127 +25,77 @@ class TradingOperator(QObject):
         self.scaler_mean = scaler_stats["mean"]
         self.scaler_scale = scaler_stats["scale"]
         self.capital_ops = CapitalOP()  # Ensure authenticated here if required
-        self.account_id = "TU ACCOUNT ID"  # Example value
-        self.capital_ops.set_account_id(self.account_id)  # Configurar el ID de cuenta en CapitalOP
-
+        self.account_id = "253360361314791710"  # Example value
         self.positions = []  # Placeholder for positions
         self.saldo_update_callback = saldo_update_callback  # Callback para actualizar el saldo
         self.last_processed_index = -1  # Mantiene el índice de la última fila procesada
         self.balance = 0  # Inicializa el saldo
         self.position_tracker = {}
-        self.data_lock = Lock()  # Este candado protegerá los datos compartidos
-        self.historical_data = None
-
         
 
-    def update_historical_data(self):
+    def run_main_loop(self, data_frame, interval=10):
         """
-        Descarga y procesa datos históricos usando las funciones de DataEth.py.
+        Procesa la última fila del DataFrame si es nueva,
+        evalúa nuevas decisiones y revisa posiciones abiertas, cada `interval` segundos.
         """
-        try:
-            print("[INFO] Iniciando actualización de datos históricos...")
-
-            # Importar las funciones necesarias de DataEth
-            from DataEth import process_data, calculate_indicators, prepare_for_export
-            import yfinance as yf
-
-            # Descargar datos desde Yahoo Finance
-            ticker = "ETH-USD"
-            interval = "1h"
-            period = "2y"
-            data = yf.download(ticker, interval=interval, period=period)
-
-            if data.empty:
-                print("[ERROR] No se obtuvieron datos históricos.")
-                return
-
-            # Procesar los datos usando las funciones de DataEth
-            data = process_data(data, ticker)
-            data = calculate_indicators(data)
-            data = prepare_for_export(data)
-
-            # Exportar los datos procesados a un archivo JSON
-            output_file = f'/home/hobeat/MoneyMakers/Reports/{ticker.replace("-", "_")}_historical_data.json'
-            with open(output_file, 'w') as f:
-                json.dump({"data": data.to_dict(orient="records")}, f, indent=4)
-
-            print(f"[INFO] Archivo generado exitosamente: {output_file}")
-            self.historical_data = data
-
-
-        except Exception as e:
-            print(f"[ERROR] Error al actualizar datos históricos: {e}")
-
-    def run_main_loop(self, data_frame, interval=25):
         print("[INFO] Iniciando bucle principal de TradingOperator.")
         try:
             while True:  # Bucle infinito para procesar datos periódicamente
-                try:
-                    print("[INFO] Iniciando actualización de datos históricos...")
-                    self.update_historical_data()
-                    if self.historical_data is not None:
-                       data_frame = self.historical_data
-
-                    print("[INFO] Actualización de datos históricos completada.")
-                except Exception as e:
-                    print(f"[ERROR] Error al actualizar datos históricos: {e}")
-                    time.sleep(interval)
-                    continue
-
                 if data_frame.empty:
                     print("[WARNING] El DataFrame está vacío. No hay datos para procesar.")
                     time.sleep(interval)
                     continue
 
+                # Obtener la última fila del DataFrame
                 latest_row = self.get_latest_data(data_frame)
 
-                print(f"[INFO] Procesando fila del DataFrame: {latest_row.name}")
+                # Verificar si la fila es nueva comparando índices
+                if self.last_processed_index < latest_row.name:
+                    print(f"[INFO] Procesando nueva fila del DataFrame: {latest_row.name}")
 
-                try:
-                    balance, positions = self.update_balance_and_positions()
-                except Exception as e:
-                    print(f"[ERROR] Error al actualizar saldo y posiciones: {e}")
-                    time.sleep(interval)
-                    continue
+                    # Actualizar saldo y posiciones
+                    try:
+                        balance, positions = self.update_balance_and_positions()
+                    except Exception as e:
+                        print(f"[ERROR] Error al actualizar saldo y posiciones: {e}")
+                        time.sleep(interval)
+                        continue
 
-                # Obtener el estado usando el modelo
-                try:
-                    input_features = [list(latest_row[self.features])]
-                    state = self.model.predict(input_features)[0]
-                    print(f"[DEBUG] Estado calculado: {state}")
-                except Exception as e:
-                    print(f"[ERROR] Error al predecir el estado: {e}")
-                    state = None  # Manejo alternativo si ocurre un error
-                    continue
+                    # Procesar datos de la última fila (nuevas decisiones)
+                    try:
+                        self.process_data(row=latest_row, positions=positions, balance=balance)
+                    except Exception as e:
+                        print(f"[ERROR] Error al procesar datos: {e}")
 
-                # Pasar el estado calculado a process_data
-                try:
-                    self.process_data(row=latest_row, positions=positions, balance=balance, state=state)
-                except Exception as e:
-                    print(f"[ERROR] Error al procesar datos: {e}")
+                    # Evaluar posiciones abiertas después de procesar datos
+                    try:
+                        current_price = latest_row["Close"]
+                        features = latest_row.to_dict()  # Convertir la fila a un diccionario para obtener características
+                        self.process_open_positions(
+                            account_id=self.account_id,
+                            capital_ops=self.capital_ops,
+                            current_price=current_price,
+                            features=features,
+                            state=self.previous_state,
+                            previous_state=None  # Aquí puedes usar self.previous_state si es aplicable
+                        )
+                    except Exception as e:
+                        print(f"[ERROR] Error al evaluar posiciones abiertas: {e}")
 
-                try:
-                    current_price = latest_row["Close"]
-                    features = latest_row.to_dict()
-                    self.process_open_positions(
-                        account_id=self.account_id,
-                        capital_ops=self.capital_ops,
-                        current_price=current_price,
-                        features=features,
-                        state=state,
-                        previous_state=self.previous_state
-                    )
-                except Exception as e:
-                    print(f"[ERROR] Error al evaluar posiciones abiertas: {e}")
+                    # Actualizar el índice de la última fila procesada
+                    self.last_processed_index = latest_row.name
 
-                print("[INFO] Fila procesada exitosamente.")
+                    # Imprimir el log acumulado
+                    self.print_log()
+                else:
+                    print("[INFO] No hay nuevas filas para procesar.")
 
-                self.print_log()
-
+                # Esperar el intervalo antes de la próxima iteración
                 time.sleep(interval)
 
         except Exception as e:
             print(f"[ERROR] Error en el bucle principal: {e}")
+
 
     def descale_value(self, feature_name, value):
         """
@@ -157,21 +104,12 @@ class TradingOperator(QObject):
         :param value: Valor escalado.
         :return: Valor desescalado.
         """
-        try:
-            if feature_name not in self.features:
-                raise ValueError(f"[ERROR] La característica {feature_name} no está en el modelo.")
-            index = self.features.index(feature_name)
-            mean = self.scaler_mean[index]
-            scale = self.scaler_scale[index]
-
-            descaled_value = (value * scale) + mean
-            print(f"[DEBUG] Desescalando {feature_name}: Escalado={value}, Desescalado={descaled_value}, Mean={mean}, Scale={scale}")
-            return descaled_value
-
-        except Exception as e:
-            print(f"[ERROR] Error al desescalar {feature_name}: {e}")
-            return value  # Retornar el valor original en caso de error
-
+        if feature_name not in self.features:
+            raise ValueError(f"[ERROR] La característica {feature_name} no está en el modelo.")
+        index = self.features.index(feature_name)
+        mean = self.scaler_mean[index]
+        scale = self.scaler_scale[index]
+        return (value * scale) + mean
 
 
 
@@ -206,10 +144,7 @@ class TradingOperator(QObject):
 
             # Solicitar posiciones abiertas
             print("[DEBUG] Solicitando posiciones abiertas...")
-            positions = self.capital_ops.get_open_positions()  # `get_open_positions` ya devuelve una lista
-            if not isinstance(positions, list):
-                print("[ERROR] Las posiciones no están en el formato esperado.")
-                return available_balance, []
+            positions = self.capital_ops.get_open_positions(self.account_id).get("positions", [])
             print(f"[DEBUG] Posiciones abiertas obtenidas: {positions}")
 
             # Retornar el saldo y las posiciones
@@ -224,7 +159,7 @@ class TradingOperator(QObject):
 
     def get_latest_data(self, data_frame):
         """
-         Devuelve la última fila de un DataFrame ya cargado.
+        Devuelve la última fila de un DataFrame ya cargado.
         
         :param data_frame: DataFrame con los datos cargados.
         :return: Última fila como un objeto pandas.Series.
@@ -269,12 +204,9 @@ class TradingOperator(QObject):
         return serialized
 
     def obtener_posiciones(self, account_id, capital_ops):
-        raw_positions = capital_ops.get_open_positions()
-        positions = raw_positions  # `raw_positions` ya es una lista
-        if not isinstance(positions, list):
-            print("[ERROR] Las posiciones no están en el formato esperado.")
-            return
-
+        raw_positions = capital_ops.get_open_positions(account_id)
+        positions = raw_positions.get("positions", [])
+        serialized_positions = TradingOperator.serialize_positions(positions)
         
         # Emitir la señal con las posiciones serializadas
         self.positions_updated.emit(serialized_positions)
@@ -319,18 +251,9 @@ class TradingOperator(QObject):
         aplicando la estrategia y cerrando posiciones según sea necesario.
         """
         try:
-
-            previous_state = self.previous_state
-            print(f"[DEBUG] Estado previo antes de procesar: {previous_state}")
-
-
             # 1) Obtener las posiciones actuales desde el broker
-            raw_positions = capital_ops.get_open_positions()
-            positions = raw_positions  # Asegúrate de que sea una lista
-            if not isinstance(positions, list):
-                print("[ERROR] Las posiciones no están en el formato esperado.")
-                return []
-
+            raw_positions = capital_ops.get_open_positions(account_id)
+            positions = raw_positions.get("positions", [])
 
             if not isinstance(positions, list):
                 print("[ERROR] Las posiciones no están en el formato esperado.")
@@ -448,8 +371,6 @@ class TradingOperator(QObject):
                 "actions_taken":  to_close,
                 "features":       relevant_features ,
             }
-            self.previous_state = state
-
             self.log_open_positions.append(log_entry)
 
             print(f"[DEBUG] Entrada añadida al log desde process_open_positions: {log_entry}")
@@ -461,19 +382,19 @@ class TradingOperator(QObject):
         except Exception as e:
             print(f"[ERROR] Fallo durante el procesamiento de posiciones: {e}")
 
-    def process_data(self, row, positions, balance, state):
+    def process_data(self, row, positions, balance):
         """
         Procesa los datos actuales usando la estrategia y valida las posiciones.
         """
         try:
-            previous_state = getattr(self, "previous_state", None)
 
-            # Validar precisión antes de la predicción
+                # Validar precisión antes de la predicción
             input_features = [list(row[self.features])]
             print(f"[DEBUG] Valores para predicción: {input_features}")
             current_state = self.model.predict(input_features)[0]
 
-            # Validar y formatear posiciones abiertas
+
+            # Validar y formatear posiciones
             formatted_positions = []
             for pos in positions:
                 try:
@@ -490,20 +411,18 @@ class TradingOperator(QObject):
                     print(f"[ERROR] Datos de posición incompletos: {e}, posición: {pos}")
                     continue
 
-            # Mantener coherencia con el estado
-            current_state = self.model.predict([list(row[self.features])])[0]
-            previous_state = self.previous_state
-            self.previous_state = current_state
-
-            # Desescalar valores para mostrar en log
-            descaled_values = {}
+            # Desescalar valores y preparar contexto para la estrategia
+            descaled_values = {feature: self.descale_value(feature, row[feature]) for feature in self.features}
             descaled_values["Datetime"] = self.format_datetime(row["Datetime"])
-            if "Close" in self.features:
-                descaled_values["Close"] = self.descale_value("Close", row["Close"])
-            else:
-                descaled_values["Close"] = row["Close"]
+            descaled_values["Close"] = self.descale_value("Close", row["Close"])  # Desescalar 'Close' correctamente
 
-            # Decisión de estrategia
+            # Mantener un estado previo
+            current_state = self.model.predict([list(row[self.features])])[0]
+            previous_state = getattr(self, "previous_state", None)
+            self.previous_state = current_state
+            print(f"[DEBUG] Valores desescalados: {descaled_values}")
+            print(f"[DEBUG] Valores escalados: {row[self.features].to_dict()}")
+            # Tomar decisiones para nuevas posiciones
             decision = self.strategy.decide(
                 state=current_state,
                 current_price=row["Close"],
@@ -512,18 +431,20 @@ class TradingOperator(QObject):
                     "RSI": row.get("RSI", 0),
                     "MACD": row.get("MACD", 0),
                     "ATR": row.get("ATR", 0),
-                    "VolumeChange": row.get("VolumeChange", 0),
-                },
+                    "VolumeChange": row.get("VolumeChange", 0)},
+
                 previous_state=previous_state,
-                market_id="ETHUSD",
-                open_positions=formatted_positions
+                market_id="BTCUSD",
+                open_positions=formatted_positions  # Pasar las posiciones abiertas aquí
+
+
             )
 
-            # Ejecutar acción si corresponde
+            # Ejecutar nueva acción si es necesario
             if decision["action"] == "buy":
                 self.capital_ops.open_position(
                     market_id=decision["market_id"],
-                    direction=decision["action"].upper(),
+                    direction=decision["action"].upper(),  # Convierte 'buy' a 'BUY'
                     size=decision["size"],
                     stop_loss=decision.get("stop_loss"),
                     take_profit=decision.get("take_profit")
@@ -531,21 +452,22 @@ class TradingOperator(QObject):
 
             # Registrar en el log
             log_entry = {
-                "datetime": str(descaled_values["Datetime"]),
-                "current_price": float(row["Close"]),
-                "balance": float(self.balance),
-                "decision": decision,
-                "descaled_values": descaled_values,
-                "state": int(current_state),
+                "datetime": str(descaled_values["Datetime"]),  # Asegurarse de que sea una cadena
+                "current_price": float(row["Close"]),          # Convertir a float
+                "balance": float(self.balance),                # Convertir a float
+                "decision": decision,                          # Diccionario serializable
+                "descaled_values": descaled_values,            # Valores ya desescalados
+                "state": int(current_state),                   # Asegurar que sea un int estándar
                 "previous_state": int(previous_state) if previous_state is not None else None
             }
-            self.previous_state = state
+
             self.log_process_data.append(log_entry)
 
             print(f"[INFO] Log actualizado Desde Process Data (Decide): {json.dumps(log_entry, ensure_ascii=False, indent=4)}")
 
         except Exception as e:
             print(f"[ERROR] Error en process_data: {e}")
+
 
 
     def print_log(self):
@@ -568,21 +490,10 @@ class TradingOperator(QObject):
                 print(f"Estado previo: {entry['previous_state']}")
                 print(f"Posiciones evaluadas:")
                 for pos in entry.get("positions", []):
-                    print(f"  - Instrumento: {pos.get('instrument', 'N/A')}")
                     print(f"  - Dirección: {pos.get('direction', 'N/A')}")
                     print(f"    Tamaño: {pos.get('size', 'N/A')}")
                     print(f"    Precio de apertura: {pos.get('price', 'N/A')}")
-                    
-                    # Ganancia/Pérdida con colores de fondo
-                    gain_loss = pos.get("upl", "N/A")
-                    if isinstance(gain_loss, (int, float)):  # Asegúrate de que sea numérico
-                        if gain_loss < 0:
-                            print(f"\033[41m    Ganancia/Pérdida: {gain_loss}\033[0m")  # Fondo rojo
-                        else:
-                            print(f"\033[42m    Ganancia/Pérdida: {gain_loss}\033[0m")  # Fondo verde
-                    else:
-                        print(f"    Ganancia/Pérdida: {gain_loss}")  # Para valores no numéricos
-
+                    print(f"    Ganancia/Pérdida: {pos.get('upl', 'N/A')}")
                 print(f"Acciones tomadas: {entry['actions_taken']}")
                 print(f"Características usadas: {entry['features']}")
                 print("=" * 40)
@@ -597,13 +508,13 @@ class TradingOperator(QObject):
                 print(f"Precio actual Escalado: {entry['current_price']:.2f}")
                 print(f"Estado predicho por el modelo: {entry['state']}")  # Mostrar estado actual
                 print(f"Estado previo: {entry['previous_state']}")  # Mostrar estado previo
-                print(f" 💲 Balance disponible: {entry['balance']:.2f}")
-                print(f" 📍Posiciones abiertas:")
+                print(f"Balance disponible: {entry['balance']:.2f}")
+                print(f"Posiciones abiertas:")
                 for pos in entry.get("positions", []):
                     print(f"  - Dirección: {pos.get('direction', 'N/A')}")
                     print(f"    Tamaño: {pos.get('size', 'N/A')}")
                     print(f"    Precio de apertura: {pos.get('price', 'N/A')}")
-                    print(f"  💰  Ganancia/Pérdida: {pos.get('upl', 'N/A')}")
+                    print(f"    Ganancia/Pérdida: {pos.get('upl', 'N/A')}")
 
                 print(f"Decisión tomada: {entry['decision']}")
                 print(f"Valores desescalados:")
@@ -627,8 +538,8 @@ if __name__ == "__main__":
         print("[INFO] Inicializando operador de trading...")
         
         # Cargar modelo, características, estrategia y datos
-        MODEL_FILE = "NeoModel.pkl"
-        DATA_FILE = "Ubicacion del archivo 1Y1HM2 que DataEth Genera "
+        MODEL_FILE = "BTCMD1.pkl"
+        DATA_FILE = "/home/hobeat/MoneyMakers/Reports/BTC_USD_IndicadoresCondensados.json"
 
         with open(MODEL_FILE, 'rb') as file:
             model_data = pickle.load(file)
