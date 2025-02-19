@@ -156,7 +156,6 @@ def calculate_indicators(data, buffer_days=30, recent_days=total_days):
     return data
 
 
-
 def prepare_for_export(data):
     """
     Prepara los datos antes de exportarlos a JSON.
@@ -167,7 +166,6 @@ def prepare_for_export(data):
         data['Datetime'] = data['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
     print("[INFO] Datos listos para exportar.")
     return data
-
 
 # Obtener EPIC
 epic = get_epic(ticker)
@@ -189,6 +187,7 @@ if epic:
         start_filter_date = pd.Timestamp(start_filter_date).tz_localize(None)
         print(f"[INFO] Filtrando datos a partir de {start_filter_date.strftime('%Y-%m-%d')}")
         data = data[data.index >= start_filter_date]
+    
         
         # Preparar datos para exportación (convertir 'Datetime' a timestamp en milisegundos)
         data = prepare_for_export(data)
