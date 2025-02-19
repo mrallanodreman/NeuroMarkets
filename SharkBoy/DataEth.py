@@ -206,14 +206,20 @@ if epic:
         print(f"[INFO] Filtrando datos a partir de {start_filter_date.strftime('%Y-%m-%d')}")
         data = data[data.index >= start_filter_date]
         
-        # Agregar columnas escaladas para las features utilizadas por el modelo de Markov
-        data = add_scaled_features(data, scaler_stats, model_features)
-        
+    
         # Preparar datos para exportación (convertir 'Datetime' a timestamp en milisegundos)
         data = prepare_for_export(data)
-        
+
+        # Crear la carpeta "Reports" dentro del directorio actual, si no existe
+        current_directory = os.getcwd()
+        reports_dir = os.path.join(current_directory, "Reports")
+        if not os.path.exists(reports_dir):
+            os.makedirs(reports_dir)
+
+        # Definir la ruta del archivo JSON de salida usando la ruta relativa
+        output_file = os.path.join(reports_dir, f'{ticker.replace("-", "_")}_CapitalData.json')
+
         # Exportar en un único documento JSON
-        output_file = f'/home/hobeat/MoneyMakers/Reports/{ticker.replace("-", "_")}_CapitalData.json'
         with open(output_file, 'w') as f:
             json.dump({"data": data.to_dict(orient="records")}, f, indent=4)
         print(f"[INFO] Archivo generado: {output_file}")
