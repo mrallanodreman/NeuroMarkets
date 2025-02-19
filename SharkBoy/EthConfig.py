@@ -30,7 +30,7 @@ ENCODED_KEY = "Y2xhdmVj"
 KEY = base64.b64decode(ENCODED_KEY).decode('utf-8')
 
 # Lista encriptada de usuarios autorizados 
-WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a"
+WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a 2200521b04110e0d12"
 
 def xor_encrypt(text, key=KEY):
     result = []
