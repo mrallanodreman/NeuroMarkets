@@ -206,7 +206,6 @@ if epic:
         print(f"[INFO] Filtrando datos a partir de {start_filter_date.strftime('%Y-%m-%d')}")
         data = data[data.index >= start_filter_date]
         
-    
         # Preparar datos para exportación (convertir 'Datetime' a timestamp en milisegundos)
         data = prepare_for_export(data)
 
