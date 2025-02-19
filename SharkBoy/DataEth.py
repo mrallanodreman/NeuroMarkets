@@ -155,17 +155,7 @@ def calculate_indicators(data, buffer_days=30, recent_days=total_days):
     print(data[["RSI", "MACD", "ATR", "VolumeChange", "Close"]].head(10))
     return data
 
-def add_scaled_features(data, scaler_stats, model_features):
-    """
-    Para cada característica que el modelo requiere, agrega una nueva columna 'scaled_<feature>'
-    con el valor escalado, dejando intactos los valores crudos.
-    """
-    for i, feature in enumerate(model_features):
-        if feature in data.columns:
-            data[f"scaled_{feature}"] = (data[feature] - scaler_stats["mean"][i]) / scaler_stats["scale"][i]
-        else:
-            print(f"[WARNING] La característica {feature} no se encuentra en los datos.")
-    return data
+
 
 def prepare_for_export(data):
     """
