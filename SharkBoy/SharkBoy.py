@@ -8,6 +8,10 @@ from EthStrategy import Strategia
 from PyQt5.QtCore import QObject, pyqtSignal
 from threading import Lock
 from datetime import datetime, timezone
+from PyQt5.QtWidgets import QApplication
+import sys
+
+
 
 class TradingOperator(QObject):
 
