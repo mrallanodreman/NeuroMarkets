@@ -499,14 +499,6 @@ class TradingOperator(QObject):
         self.log_process_data = []
 
 if __name__ == "__main__":
-    from PyQt5.QtWidgets import QApplication
-    import sys
-    import os
-    import json
-    import pandas as pd
-    from EthSession import CapitalOP
-    from EthStrategy import Strategia
-    # Asegúrate de que TradingOperator esté importado o definido en este archivo
 
     try:
         print("[INFO] Inicializando operador de trading...")
@@ -514,9 +506,7 @@ if __name__ == "__main__":
         # Se definen las características necesarias
         features = ["RSI", "MACD", "ATR", "VolumeChange", "Close", "Datetime"]
 
-        # Construir la ruta relativa para el archivo de datos
-        current_directory = os.getcwd()
-        DATA_FILE = os.path.join(current_directory, "Reports", "ETHUSD_CapitalData.json")
+        DATA_FILE = "/home/hobeat/MoneyMakers/Reports/ETH_USD_1Y1HM2.json"
 
         with open(DATA_FILE, 'r') as file:
             raw_data = json.load(file)
@@ -549,4 +539,3 @@ if __name__ == "__main__":
 
     except Exception as e:
         print(f"[ERROR] Error en la ejecución principal: {e}")
-
