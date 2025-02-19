@@ -178,12 +178,6 @@ def prepare_for_export(data):
     print("[INFO] Datos listos para exportar.")
     return data
 
-# Cargar modelo y estadísticas del escalador (usado en el modelo de Markov)
-MODEL_FILE = "msm_model.pkl"
-with open(MODEL_FILE, 'rb') as f:
-    model_data = pickle.load(f)
-scaler_stats = model_data['scaler_stats']
-model_features = model_data['features']
 
 # Obtener EPIC
 epic = get_epic(ticker)
