@@ -10,9 +10,12 @@ import yfinance as yf
 import time
 from threading import Thread
 import matplotlib.pyplot as plt
+
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from PyQt5.QtGui import QPainter, QColor
 from PyQt5.QtCore import Qt
+
+
 
 
 class CircleWidget(QWidget):

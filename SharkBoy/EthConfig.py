@@ -20,9 +20,9 @@ import importlib
 BASE_URL = "https://api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 MARKET_SEARCH_ENDPOINT = "/api/v1/markets"
-API_KEY = None 
-LOGIN = None
-PASSWORD = None
+API_KEY = "dshUTxIDbHEtaOJS" 
+LOGIN = "odremanallanr@gmail.com"
+PASSWORD = "Millo2025."
 DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
 OPERATION_MODE = "real"  # Puede ser "demo" o "real"
 
