@@ -510,7 +510,9 @@ if __name__ == "__main__":
         # Se definen las características necesarias
         features = ["RSI", "MACD", "ATR", "VolumeChange", "Close", "Datetime"]
 
-        DATA_FILE = "/home/hobeat/MoneyMakers/Reports/ETH_USD_1Y1HM2.json"
+        # Construir la ruta relativa para el archivo de datos
+        current_directory = os.getcwd()
+        DATA_FILE = os.path.join(current_directory, "Reports", "ETHUSD_CapitalData.json")
 
         with open(DATA_FILE, 'r') as file:
             raw_data = json.load(file)
