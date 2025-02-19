@@ -20,15 +20,16 @@ import importlib
 BASE_URL = "https://demo-api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 MARKET_SEARCH_ENDPOINT = "/api/v1/markets"
-API_KEY = "dshUTxIDbHEtaOJS" 
-LOGIN = "odremanallanr@gmail.com"
-PASSWORD = "Millo2025."
+API_KEY = None
+LOGIN = None
+PASSWORD = None
 DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
 OPERATION_MODE = "demo"  # Puede ser "demo" o "real"
 
 ENCODED_KEY = "Y2xhdmVj" 
 KEY = base64.b64decode(ENCODED_KEY).decode('utf-8')
 
+# Ucan use Hobeat as Guest User! 
 # Lista encriptada de usuarios autorizados 
 WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a"
 
