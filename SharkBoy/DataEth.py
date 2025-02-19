@@ -210,7 +210,7 @@ if epic:
         data = prepare_for_export(data)
 
         # Crear la carpeta "Reports" dentro del directorio actual, si no existe
-        current_directory = os.getcwd()
+        current_directory = os.getcwd()  # Definimos current_directory aquí
         reports_dir = os.path.join(current_directory, "Reports")
         if not os.path.exists(reports_dir):
             os.makedirs(reports_dir)
