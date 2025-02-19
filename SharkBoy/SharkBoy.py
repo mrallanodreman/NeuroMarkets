@@ -12,7 +12,6 @@ from PyQt5.QtWidgets import QApplication
 import sys
 
 
-
 class TradingOperator(QObject):
 
     positions_updated = pyqtSignal(list)
