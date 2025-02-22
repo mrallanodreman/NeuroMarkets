@@ -16,8 +16,8 @@ class CapitalOP:
         self.x_security_token = None
         self.account_id = None  # Atributo para almacenar el account_id actual
         # 🔹 Límites de posiciones para cada bot
-        self.max_buy_positions = 1   # Límite para EthOperator
-        self.max_sell_positions = 4  # Límite para SharkBoy
+        self.max_buy_positions = 0   # Límite para EthOperator
+        self.max_sell_positions = 0  # Límite para SharkBoy
 
     def set_account_id(self, account_id):
         """Configura el account_id que se utilizará en las consultas."""

@@ -24,7 +24,7 @@ class TradingOperator(QObject):
         self.log_process_data = []
         # Se elimina el uso de estados y escalado/desescalado
         self.capital_ops = CapitalOP()
-        self.account_id = "259777742534684958"
+        self.account_id = "260494821678994628"
         self.capital_ops.set_account_id(self.account_id)
         self.positions = []
         self.saldo_update_callback = saldo_update_callback
@@ -36,12 +36,12 @@ class TradingOperator(QObject):
 
     def update_historical_data(self):
         """
-        Ejecuta DataEth.py para descargar y procesar los datos desde Capital.com
-        y luego carga el JSON generado en self.historical_data con validaciones adicionales.
+        Ejecuta DataEth.py para descargar y procesar los datos desde Capital.com.
         """
         try:
             script_dir = os.path.dirname(os.path.abspath(__file__))
             dataeth_path = os.path.join(script_dir, "DataEth.py")
+            output_file = os.path.join(script_dir, "Reports", "ETHUSD_CapitalData.json")
 
             print(f"[INFO] 🔄 Ejecutando DataEth.py en {dataeth_path} para actualizar datos desde Capital.com...")
 
@@ -50,7 +50,6 @@ class TradingOperator(QObject):
                 return
 
             process = subprocess.Popen(["python3", dataeth_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
             for line in process.stdout:
                 print(f"[DATAETH] {line.strip()}")
 
@@ -64,9 +63,8 @@ class TradingOperator(QObject):
                     print(f"[DATAETH-ERROR] {error_line.strip()}")
                 return
 
-            output_file = "/home/hobeat/MoneyMakers/Reports/ETHUSD_CapitalData.json"
             if not os.path.exists(output_file):
-                print("[ERROR] ❌ No se encontró el archivo de datos después de ejecutar DataEth.py.")
+                print(f"[ERROR] ❌ No se encontró el archivo de datos después de ejecutar DataEth.py en {output_file}")
                 return
 
             print(f"[INFO] 📂 Cargando datos desde {output_file}...")
@@ -85,22 +83,24 @@ class TradingOperator(QObject):
                     print("[INFO] 🔄 Renombrando 'snapshotTime' a 'Datetime'...")
                     self.historical_data.rename(columns={'snapshotTime': 'Datetime'}, inplace=True)
                 else:
-                    print(f"[ERROR] ❌ No se encontró una columna de tiempo válida. Columnas disponibles: {self.historical_data.columns.tolist()}")
+                    print(f"[ERROR] ❌ No se encontró una columna de tiempo válida.")
                     return
 
             self.historical_data['Datetime'] = pd.to_datetime(self.historical_data['Datetime'], errors='coerce', utc=True)
             self.historical_data.dropna(subset=['Datetime'], inplace=True)
+
             if self.historical_data.empty:
                 print("[ERROR] ❌ El DataFrame quedó vacío después de eliminar NaT en 'Datetime'.")
                 return
 
             self.historical_data.set_index('Datetime', inplace=True)
             self.historical_data.sort_index(inplace=True)
+
             if not isinstance(self.historical_data.index, pd.DatetimeIndex):
-                print(f"[ERROR] ❌ El índice del DataFrame no es un DatetimeIndex. Tipo actual: {type(self.historical_data.index)}")
+                print(f"[ERROR] ❌ El índice del DataFrame no es un DatetimeIndex.")
                 return
 
-            print("[INFO] ✅ Datos históricos cargados exitosamente después de ejecutar DataEth.py.")
+            print("[INFO] ✅ Datos históricos cargados exitosamente.")
 
         except Exception as e:
             print(f"[ERROR] ❌ Error al actualizar datos históricos: {e}")
@@ -113,18 +113,21 @@ class TradingOperator(QObject):
                 try:
                     print("[INFO] 🔄 Iniciando actualización de datos históricos...")
                     self.update_historical_data()
-                    if self.historical_data is not None:
+
+                    if self.historical_data is not None and not self.historical_data.empty:
                         data_frame = self.historical_data
-                    print("[INFO] ✅ Actualización de datos históricos completada.")
+                        print("[INFO] ✅ Actualización de datos históricos completada.")
+                    else:
+                        print("[WARNING] ⚠️ Los datos históricos están vacíos después de la actualización.")
+                        time.sleep(interval)
+                        continue
+
                 except Exception as e:
                     print(f"[ERROR] ❌ Error al actualizar datos históricos: {e}")
                     time.sleep(interval)
                     continue
 
-                print("[DEBUG] 📊 Verificando índice del DataFrame...")
-                print(type(data_frame.index))
-                print(data_frame.index[:5])
-
+                # Validar el índice de tiempo
                 if not isinstance(data_frame.index, pd.DatetimeIndex):
                     print("[WARNING] ⚠️ Índice no es de tipo DatetimeIndex. Convirtiendo...")
                     data_frame.index = pd.to_datetime(data_frame.index, errors='coerce')
@@ -141,6 +144,7 @@ class TradingOperator(QObject):
                     time.sleep(interval)
                     continue
 
+                # Procesar la última fila de datos
                 latest_row = self.get_latest_data(data_frame)
 
                 if not isinstance(latest_row.name, pd.Timestamp):
@@ -164,8 +168,15 @@ class TradingOperator(QObject):
                     print(f"[ERROR] ❌ Error al procesar datos: {e}")
 
                 try:
+                    # Verificar si las columnas críticas tienen valores válidos
+                    if pd.isna(latest_row.get("Close")):
+                        print("[ERROR] ❌ El valor de 'Close' es NaN. Saltando esta fila.")
+                        time.sleep(interval)
+                        continue
+
                     current_price = latest_row["Close"]
                     features_dict = latest_row.to_dict()
+
                     self.process_open_positions(
                         account_id=self.account_id,
                         capital_ops=self.capital_ops,
@@ -180,6 +191,8 @@ class TradingOperator(QObject):
 
                 time.sleep(interval)
 
+        except KeyboardInterrupt:
+            print("[INFO] 🛑 Bucle de trading detenido manualmente por el usuario.")
         except Exception as e:
             print(f"[ERROR] ❌ Error en el bucle principal: {e}")
 
@@ -502,25 +515,46 @@ class TradingOperator(QObject):
         self.log_process_data = []
 
 if __name__ == "__main__":
-
     try:
         print("[INFO] Inicializando operador de trading...")
 
-        # Se definen las características necesarias
         features = ["RSI", "MACD", "ATR", "VolumeChange", "Close", "Datetime"]
 
-        # Construir la ruta relativa para el archivo de datos
-        current_directory = os.getcwd()
-        DATA_FILE = os.path.join(current_directory, "Reports", "ETHUSD_CapitalData.json")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        DATA_FILE = os.path.join(script_dir, "Reports", "ETHUSD_CapitalData.json")
+
+        if not os.path.exists(DATA_FILE):
+            print("[WARNING] ⚠️ Archivo de datos no encontrado. Ejecutando DataEth.py para generar los datos...")
+            dataeth_path = os.path.join(script_dir, "DataEth.py")
+
+            if os.path.exists(dataeth_path):
+                process = subprocess.Popen(["python3", dataeth_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                for line in process.stdout:
+                    print(f"[DATAETH] {line.strip()}")
+                process.wait()
+
+                if process.returncode == 0:
+                    print("[INFO] ✅ DataEth.py ejecutado con éxito. Archivo de datos generado.")
+                else:
+                    print(f"[ERROR] ❌ Error al ejecutar DataEth.py. Código de salida: {process.returncode}")
+                    sys.exit(1)
+            else:
+                print("[ERROR] ❌ No se encontró el script DataEth.py.")
+                sys.exit(1)
+
+        if not os.path.exists(DATA_FILE):
+            print("[ERROR] ❌ No se pudo generar el archivo de datos. Finalizando ejecución.")
+            sys.exit(1)
 
         with open(DATA_FILE, 'r') as file:
             raw_data = json.load(file)
 
         data_frame = pd.DataFrame(raw_data.get('data', []))
         data_frame.columns = data_frame.columns.str.strip()
+
         if 'Datetime' in data_frame.columns:
-            data_frame['Datetime'] = pd.to_datetime(data_frame['Datetime'], unit='ms', errors='coerce')
-            data_frame = data_frame.set_index('Datetime')
+            data_frame['Datetime'] = pd.to_datetime(data_frame['Datetime'], errors='coerce', utc=True)
+            data_frame.set_index('Datetime', inplace=True)
             data_frame.sort_index(inplace=True)
         else:
             print("[WARNING] No se encontró la columna 'Datetime' en los datos.")

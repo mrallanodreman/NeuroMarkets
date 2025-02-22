@@ -76,6 +76,7 @@ def download_data_capital(epic, interval, start_date, end_date):
         else:
             print(f"[ERROR] Fallo en la descarga: {response.status_code} - {response.text}")
         current_date = seg_end_date
+
     if all_data:
         df = pd.DataFrame(all_data)
         df.rename(columns={
@@ -89,6 +90,33 @@ def download_data_capital(epic, interval, start_date, end_date):
         df["Datetime"] = pd.to_datetime(df["Datetime"])
         df.set_index("Datetime", inplace=True)
         df.sort_index(inplace=True)
+
+        # Convert the last hour's data to minute intervals
+        last_hour = df.index[-1]
+        minute_prices_url = f"{capital_ops.base_url}/api/v1/prices/{epic}?resolution=MINUTE&from={last_hour.strftime('%Y-%m-%dT%H:%M:%S')}&to={(last_hour + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S')}"
+        response = requests.get(minute_prices_url, headers=headers)
+        if response.status_code == 200:
+            minute_data = response.json().get("prices", [])
+            if minute_data:
+                minute_df = pd.DataFrame(minute_data)
+                minute_df.rename(columns={
+                    'snapshotTimeUTC': 'Datetime',
+                    'openPrice': 'Open',
+                    'highPrice': 'High',
+                    'lowPrice': 'Low',
+                    'closePrice': 'Close',
+                    'lastTradedVolume': 'Volume'
+                }, inplace=True)
+                minute_df["Datetime"] = pd.to_datetime(minute_df["Datetime"])
+                minute_df.set_index("Datetime", inplace=True)
+                minute_df.sort_index(inplace=True)
+
+                # Remove the last row from the hourly data
+                df = df.iloc[:-1]
+
+                # Append the minute-resolution data using concat
+                df = pd.concat([df, minute_df])
+
         return df
     else:
         return pd.DataFrame()
@@ -170,38 +198,38 @@ def prepare_for_export(data):
 # Obtener EPIC
 epic = get_epic(ticker)
 if epic:
-    # Para el cálculo correcto, descargamos datos para total_days (395 días)
-    # Nota: buffer_months se mantiene solo para la descarga si se requiere (en este caso usamos total_days directamente)
+    # Descargar datos de los últimos días
     end_date = datetime.now(pytz.UTC)
     start_date = end_date - timedelta(days=total_days)
     print(f"[INFO] Descargando datos desde {start_date.strftime('%Y-%m-%d')} hasta {end_date.strftime('%Y-%m-%d')}")
+
     data = download_data_capital(epic, interval, start_date, end_date)
     if data.empty:
         print("[ERROR] No se obtuvieron datos de la API de Capital.com.")
     else:
-        # Calcular indicadores usando el conjunto completo de total_days (395 días)
+        # Calcular indicadores
         data = calculate_indicators(data, buffer_days=buffer_days, recent_days=total_days)
         
-        # Filtrar para quedarnos únicamente con los últimos period_days (365 días)
+        # Filtrar datos de los últimos period_days
         start_filter_date = end_date - timedelta(days=period_days)
         start_filter_date = pd.Timestamp(start_filter_date).tz_localize(None)
-        print(f"[INFO] Filtrando datos a partir de {start_filter_date.strftime('%Y-%m-%d')}")
+        print(f"[INFO] Filtrando datos desde {start_filter_date.strftime('%Y-%m-%d')}")
         data = data[data.index >= start_filter_date]
-    
         
-        # Preparar datos para exportación (convertir 'Datetime' a timestamp en milisegundos)
+        # Preparar datos para exportación
         data = prepare_for_export(data)
 
-        # Crear la carpeta "Reports" dentro del directorio actual, si no existe
-        current_directory = os.getcwd()  # Definimos current_directory aquí
-        reports_dir = os.path.join(current_directory, "Reports")
-        if not os.path.exists(reports_dir):
-            os.makedirs(reports_dir)
+        # Guardar archivo JSON con clave 'data'
+        output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reports")
+        os.makedirs(output_dir, exist_ok=True)
 
-        # Definir la ruta del archivo JSON de salida usando la ruta relativa
-        output_file = os.path.join(reports_dir, f'{ticker.replace("-", "_")}_CapitalData.json')
+        output_file = os.path.join(output_dir, "ETHUSD_CapitalData.json")
+        json_data = {"data": data.to_dict(orient="records")}
 
-        # Exportar en un único documento JSON
         with open(output_file, 'w') as f:
-            json.dump({"data": data.to_dict(orient="records")}, f, indent=4)
-        print(f"[INFO] Archivo generado: {output_file}")
+            json.dump(json_data, f, indent=4)
+
+        if os.path.exists(output_file):
+            print(f"[INFO] ✅ Datos guardados correctamente en {output_file}")
+        else:
+            print(f"[ERROR] ❌ No se pudo guardar el archivo en {output_file}")

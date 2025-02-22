@@ -17,20 +17,21 @@ import importlib
 # Variables de configuración globales
 # ========================
 # Si alguna de estas variables se deja en None, el script solicitará la configuración.
-BASE_URL = "https://demo-api-capital.backend-capital.com/"
+BASE_URL = "https://api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 MARKET_SEARCH_ENDPOINT = "/api/v1/markets"
 API_KEY = None 
 LOGIN = None
-PASSWORD = None 
+PASSWORD = None
 DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
-OPERATION_MODE = "demo"  # Puede ser "demo" o "real"
+OPERATION_MODE = "real"  # Puede ser "demo" o "real"
 
 ENCODED_KEY = "Y2xhdmVj" 
 KEY = base64.b64decode(ENCODED_KEY).decode('utf-8')
 
+
 # Lista encriptada de usuarios autorizados 
-WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a 2200521b04110e0d12"
+WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a 200404180106"
 
 def xor_encrypt(text, key=KEY):
     result = []
@@ -147,22 +148,49 @@ def change_account_type(console):
     panel = Panel(panel_text, title="[bold cyan]Seleccione el nuevo tipo de cuenta[/bold cyan]", expand=False)
     console.print(panel)
     mode_choice = Prompt.ask("Ingrese Opcion 1 para Demo / Opcion  2 Para real ",)
+    
     if mode_choice == "1":
         new_api_url = "https://demo-api-capital.backend-capital.com/"
         mode = "demo"
     else:
         new_api_url = "https://api-capital.backend-capital.com/"
         mode = "real"
+    
     console.print(f"\n[bold green]Nuevo modo seleccionado: {mode.upper()}[/bold green]")
     console.print(f"[bold green]Nueva URL base configurada: [underline]{new_api_url}[/underline][/bold green]\n")
+    
     BASE_URL = new_api_url
     OPERATION_MODE = mode.lower()
+    
     # Actualizamos solo BASE_URL y OPERATION_MODE en el archivo de configuración
     config_updates = {
          "BASE_URL": BASE_URL,
          "OPERATION_MODE": OPERATION_MODE,
     }
     update_config_file(__file__, config_updates)
+    
+    # Cerrar la sesión actual limpiando las credenciales y asegurando su eliminación
+    console.print("[INFO] Limpiando credenciales antes de cambiar de cuenta...")
+    try:
+        from EthSession import CapitalOP
+        capital_ops = CapitalOP()
+        capital_ops.session_token = None
+        capital_ops.x_security_token = None
+    except Exception as e:
+        console.print(f"[WARNING] No se pudo limpiar la sesión actual: {e}")
+    
+    # Recargar el módulo de EthSession para aplicar la nueva configuración
+    import EthSession
+    importlib.reload(EthSession)
+    
+    # Re-inicializar CapitalOP con la nueva configuración y autenticar
+    capital_ops = EthSession.CapitalOP()
+    capital_ops.ensure_authenticated()
+    
+    console.print("[bold green]Cambio de cuenta realizado con éxito. Sesión autenticada correctamente.[/bold green]")
+    
+    return capital_ops
+
 
 
 def main():
@@ -215,9 +243,18 @@ def main():
     console.print("   [bold yellow]2)[/bold yellow] Cambiar tipo de cuenta (de real a demo o viceversa)")
     console.print("   [bold yellow]3)[/bold yellow] Ver la configuración actual")
     change_option = Prompt.ask("[bold red]Ingrese 1, 2 o 3 según lo que necesites hacer[/bold red]")
-    
-    if change_option == "2":
-        change_account_type(console)
+
+    if change_option == "1":
+        # Opción 1: Cambiar cuenta de trading sin modificar el tipo (demo/real)
+        # Volvemos a obtener el resumen de cuentas en caso de que haya cambios.
+        account_summary = capital_ops.get_account_summary()
+        accounts = account_summary.get("accounts", [])
+        if not accounts:
+            console.print("[bold red]No se encontraron cuentas disponibles.[/bold red]")
+            return
+    elif change_option == "2":
+        # Opción 2: Cambiar tipo de cuenta (demo/real)
+        capital_ops = change_account_type(console)
         import EthSession
         importlib.reload(EthSession)
         # Reobtener resumen de cuenta con la nueva configuración
@@ -226,8 +263,11 @@ def main():
         if not accounts:
             console.print("[bold red]No se encontraron cuentas disponibles tras la reconfiguración.[/bold red]")
             return
-    # Para opción 1 o 3 se conserva la configuración actual
-    
+    elif change_option == "3":
+        # Opción 3: Ver la configuración actual
+        # No se modifica nada, se utiliza el resumen de cuentas obtenido inicialmente.
+        pass
+        
     # Mostrar un resumen enriquecido para cada cuenta disponible
     console.print("\n[bold cyan]Resumen de cada cuenta disponible:[/bold cyan]\n")
     for account in accounts:
