@@ -2,7 +2,8 @@ import requests
 import json
 from datetime import datetime
 import time
-from config import BASE_URL, API_KEY, LOGIN, PASSWORD
+from EthConfig import BASE_URL, API_KEY, LOGIN, PASSWORD
+from colorama import Fore, Style
 
 class CapitalOP:
     def __init__(self):
@@ -13,6 +14,15 @@ class CapitalOP:
         self.password = PASSWORD
         self.session_token = None
         self.x_security_token = None
+        self.account_id = None  # Atributo para almacenar el account_id actual
+        # 🔹 Límites de posiciones para cada bot
+        self.max_buy_positions = 3   # Límite para EthOperator
+        self.max_sell_positions = 2  # Límite para SharkBoy
+
+    def set_account_id(self, account_id):
+        """Configura el account_id que se utilizará en las consultas."""
+        self.account_id = account_id
+        print(f"[INFO] Account ID configurado: {self.account_id}")
 
 
     def authenticate(self):
@@ -34,7 +44,7 @@ class CapitalOP:
 
             if response.status_code == 200:
                 session_data = response.json()
-                print(f"[DEBUG] Respuesta completa")
+                print(f"[DEBUG] Respuesta completa:\n{json.dumps(session_data, indent=4)}")
 
                 # Obtener tokens de los encabezados
                 self.session_token = response.headers.get("CST")
@@ -85,35 +95,43 @@ class CapitalOP:
             print(f"[ERROR] Fallo al obtener resumen de cuenta: {e}")
             return {}
 
-    def get_open_positions(self, account_id=None):
-	    try:
-	        self.ensure_authenticated()
+    def get_open_positions(self):
+        """Obtiene las posiciones abiertas para la cuenta activa."""
+        try:
+            self.ensure_authenticated()
 
-	        if not account_id:
-	            account_id = self.current_account_id=[45283356325270724]
-	        positions_url = f"{self.base_url}/api/v1/positions"
-	        headers = {
-	            "Content-Type": "application/json",
-	            "X-CAP-API-KEY": self.api_key,
-	            "CST": self.session_token,
-	            "X-SECURITY-TOKEN": self.x_security_token
-	        }
+            # Endpoint para obtener posiciones abiertas
+            positions_url = f"{self.base_url}/api/v1/positions"
+            headers = {
+                "Content-Type": "application/json",
+                "X-CAP-API-KEY": self.api_key,
+                "CST": self.session_token,
+                "X-SECURITY-TOKEN": self.x_security_token
+            }
 
-	        params = {"accountId": account_id}
+            print(f"[DEBUG] Solicitando posiciones abiertas para la cuenta activa.")
+            response = requests.get(positions_url, headers=headers)
 
-	        response = requests.get(positions_url, headers=headers, params=params)
-	        print("[DEBUG] URL de consulta:", response.url)
-	        print("[DEBUG] Respuesta completa:")
+            print("[DEBUG] URL de consulta:", response.url)
+            print("[DEBUG] Respuesta completa:", response.text)
 
-	        if response.status_code == 200:
-	            positions = response.json()
-	            return positions
-	        else:
-	            print(f"[ERROR] Error al obtener posiciones abiertas: {response.status_code} - {response.text}")
-	            return {}
-	    except Exception as e:
-	        print(f"[ERROR] Fallo al obtener posiciones abiertas: {e}")
-	        return {}
+            if response.status_code == 200:
+                data = response.json()
+                positions = data.get("positions", [])
+
+                # Separar posiciones por tipo de operación
+                buy_positions = [pos for pos in positions if pos["position"]["direction"] == "BUY"]
+                sell_positions = [pos for pos in positions if pos["position"]["direction"] == "SELL"]
+
+                print(f"[INFO] Posiciones abiertas - BUY: {len(buy_positions)}, SELL: {len(sell_positions)}")
+                return buy_positions, sell_positions  # ✅ Ahora sí retorna correctamente
+
+            print(f"[ERROR] Error al obtener posiciones abiertas: {response.status_code} - {response.text}")
+            return [], []  # ✅ Manejo de error
+
+        except Exception as e:
+            print(f"[ERROR] Fallo al obtener posiciones abiertas: {e}")
+            return [], []
 
     def close_position(self, deal_id):
         """Cierra una posición específica por dealId."""
@@ -153,6 +171,13 @@ class CapitalOP:
         """
         try:
             self.ensure_authenticated()
+
+             # Obtener posiciones abiertas actuales
+            buy_positions, sell_positions = self.get_open_positions()
+        
+            if direction.upper() == "SELL" and len(sell_positions) >= self.max_sell_positions:
+                print(f"[WARNING] Límite de posiciones SELL alcanzado ({self.max_sell_positions}). No se abrirá una nueva posición.")
+                return None
 
             open_url = f"{self.base_url}/api/v1/positions"
             headers = {
@@ -221,61 +246,87 @@ class CapitalOP:
                 "message": str(e)
             }
 
+    def print_account_details(self):
+        """Imprime un resumen detallado de la cuenta, incluyendo el saldo y las operaciones abiertas con formato mejorado."""
+        try:
+            if not self.account_id:
+                raise ValueError("[ERROR] No se ha configurado el account_id.")
 
- 
-    def print_account_details(self, account_id=None):
-	    """Imprime un resumen detallado de la cuenta, incluyendo el saldo y las operaciones abiertas."""
-	    try:
-	        account_summary = self.get_account_summary()
-	        open_positions = self.get_open_positions(account_id=account_id)
+            account_summary = self.get_account_summary()
+            buy_positions, sell_positions = self.get_open_positions()  # ⚠️ Desempaquetar correctamente
 
-	        print("\n[INFO] Resumen de la Cuenta:")
-	        if account_summary and isinstance(account_summary, dict):
-	            for key, value in account_summary.items():
-	                print(f"  {key}: {value}")
+            print("\n[INFO] Resumen de la Cuenta:")
+            if account_summary and isinstance(account_summary, dict):
+                for account in account_summary.get("accounts", []):
+                    print(f"  - Account ID: {account['accountId']}")
+                    print(f"    Nombre: {account['accountName']}")
+                    print(f"    Saldo: {account['balance']['balance']} {account['currency']}")
+                    print(f"    Disponible: {account['balance']['available']}\n")
 
-	        print(f"\n[INFO] Posiciones Abiertas para la cuenta: {account_id}")
-	        if open_positions and "positions" in open_positions:
-	            positions = open_positions.get("positions", [])
-	            if positions:
-	                for pos in positions:
-	                    position_details = pos.get("position", {})
-	                    market_details = pos.get("market", {})
+            print(f"\n[INFO] Posiciones Abiertas para la cuenta: {self.account_id}")
 
-	                    print(f"  - Instrumento: {market_details.get('instrumentName', 'N/A')}")
-	                    print(f"    Tipo: {market_details.get('instrumentType', 'N/A')}")
-	                    print(f"    Dirección: {position_details.get('direction', 'N/A')}")
-	                    print(f"    Tamaño: {position_details.get('size', 'N/A')}")
-	                    print(f"    Precio de apertura: {position_details.get('level', 'N/A')}")
-	                    print(f"    Ganancia/Pérdida: {position_details.get('upl', 'N/A')}")
-	                    print(f"    Moneda: {position_details.get('currency', 'N/A')}")
-	                    print("")
-	            else:
-	                print("  No hay posiciones abiertas.")
-	        else:
-	            print("  No hay posiciones abiertas o la respuesta no es válida.")
+            all_positions = buy_positions + sell_positions
+            if all_positions:
+                for index, pos in enumerate(all_positions, start=1):
+                    position_details = pos.get("position", {})
+                    market_details = pos.get("market", {})
 
-	    except Exception as e:
-	        print(f"[ERROR] Fallo al imprimir detalles de la cuenta: {e}")
+                    # 🏷️ Datos básicos
+                    instrument_name = market_details.get('instrumentName', 'N/A')
+                    direction = position_details.get('direction', 'N/A')
+                    size = position_details.get('size', 'N/A')
+                    price = position_details.get('level', 'N/A')
+                    profit_loss = position_details.get('upl', 0)
+                    currency = position_details.get('currency', 'N/A')
+
+                    # 📊 Determinar color de ganancia/pérdida
+                    profit_color = Fore.GREEN if profit_loss >= 0 else Fore.RED
+                    direction_emoji = "📈" if direction == "BUY" else "📉"
+                    position_number = f"{index}\ufe0f️⃣"  # Número con emoji (1️⃣, 2️⃣, 3️⃣...)
+
+                    # 🏳️ Separador con fondo blanco
+                    print(f"\n{Style.BRIGHT}{Fore.BLACK}{"=" * 40}{Style.RESET_ALL}")
+
+                    # 📝 Imprimir datos de la posición
+                    print(f"{position_number} - 🎯 Instrumento: {instrument_name}")
+                    print(f"    Dirección: {direction_emoji} {direction}")
+                    print(f"    Tamaño: {size}")
+                    print(f"    Precio de apertura: {price}")
+                    print(f"    Ganancia/Pérdida: {profit_color}{profit_loss} {currency}{Style.RESET_ALL}")
+
+                # 🎭 Fin de la impresión
+                print(f"\n{Style.BRIGHT}{Fore.BLACK}{"=" * 40}{Style.RESET_ALL}")
+
+            else:
+                print("  No hay posiciones abiertas.")
+        except Exception as e:
+            print(f"{Fore.RED}[ERROR] Fallo al imprimir detalles de la cuenta: {e}{Style.RESET_ALL}")
+
+
+
+
+
 
 
 if __name__ == "__main__":
     try:
         capital_ops = CapitalOP()
-
         # Autenticación inicial
         capital_ops.ensure_authenticated()
-
+        
+        # Verificamos que el account_id ya haya sido configurado dinámicamente.
+        if not capital_ops.account_id:
+            print("[ERROR] No se ha configurado el account_id. Por favor, ejecute EthConfig para configurar el bot.")
+            exit(1)
+        
         print("[INFO] El programa está corriendo. Presiona Ctrl+C para detenerlo.")
         while True:
             try:
                 # Obtener detalles de la cuenta específica
-                account_id = "45283356325270724"  # Cambia al ID de cuenta deseado
-                capital_ops.print_account_details(account_id=account_id)
+                capital_ops.print_account_details()
                 time.sleep(60)
             except Exception as e:
                 print(f"[ERROR] Error en el ciclo principal: {e}")
                 time.sleep(5)
-
     except KeyboardInterrupt:
         print("\n[INFO] Interrupción manual detectada. Programa finalizado.")

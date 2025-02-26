@@ -52,19 +52,13 @@ def get_epic(symbol):
 
 def download_data_capital(epic, interval, start_date, end_date):
     """
-    Descarga datos históricos desde Capital.com y mantiene dos DataFrames:
-    1. historical_data -> Contiene los datos históricos en la resolución original.
-    2. data_1m -> Contiene los datos a 1 minuto.
+    Descarga datos históricos desde Capital.com.
     """
     all_data = []
     current_date = start_date
-    segment_days = 10  # Descarga en segmentos de 10 días
-
     while current_date < end_date:
         seg_end_date = min(current_date + timedelta(days=segment_days), end_date)
-        print(f"[INFO] Descargando datos {interval}: {current_date.strftime('%Y-%m-%d')} - {seg_end_date.strftime('%Y-%m-%d')}")
-
-        # 📌 Descarga datos en la resolución original (ej: HOUR, DAY)
+        print(f"[INFO] Descargando datos: {current_date.strftime('%Y-%m-%d')} - {seg_end_date.strftime('%Y-%m-%d')}")
         prices_url = f"{capital_ops.base_url}/api/v1/prices/{epic}?resolution={interval}&from={current_date.strftime('%Y-%m-%dT%H:%M:%S')}&to={seg_end_date.strftime('%Y-%m-%dT%H:%M:%S')}"
         headers = {
             "Content-Type": "application/json",
@@ -72,7 +66,6 @@ def download_data_capital(epic, interval, start_date, end_date):
             "CST": capital_ops.session_token,
             "X-SECURITY-TOKEN": capital_ops.x_security_token
         }
-
         response = requests.get(prices_url, headers=headers)
         if response.status_code == 200:
             data = response.json().get("prices", [])
@@ -82,11 +75,9 @@ def download_data_capital(epic, interval, start_date, end_date):
                 print(f"[WARNING] No se encontraron datos para {current_date} - {seg_end_date}")
         else:
             print(f"[ERROR] Fallo en la descarga: {response.status_code} - {response.text}")
-
         current_date = seg_end_date
 
     if all_data:
-        # 📌 Crear DataFrame con datos históricos (HOUR, DAY, etc.)
         df = pd.DataFrame(all_data)
         df.rename(columns={
             'snapshotTimeUTC': 'Datetime',
@@ -96,18 +87,13 @@ def download_data_capital(epic, interval, start_date, end_date):
             'closePrice': 'Close',
             'lastTradedVolume': 'Volume'
         }, inplace=True)
-
         df["Datetime"] = pd.to_datetime(df["Datetime"])
         df.set_index("Datetime", inplace=True)
         df.sort_index(inplace=True)
 
-        # ✅ Guardar copia de los datos históricos antes de modificar `df`
-        historical_data = df.copy()
-
-        # ✅ Descarga de datos a 1 minuto
+        # Convert the last hour's data to minute intervals
         last_hour = df.index[-1]
         minute_prices_url = f"{capital_ops.base_url}/api/v1/prices/{epic}?resolution=MINUTE&from={last_hour.strftime('%Y-%m-%dT%H:%M:%S')}&to={(last_hour + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S')}"
-        
         response = requests.get(minute_prices_url, headers=headers)
         if response.status_code == 200:
             minute_data = response.json().get("prices", [])
@@ -121,22 +107,19 @@ def download_data_capital(epic, interval, start_date, end_date):
                     'closePrice': 'Close',
                     'lastTradedVolume': 'Volume'
                 }, inplace=True)
-
                 minute_df["Datetime"] = pd.to_datetime(minute_df["Datetime"])
                 minute_df.set_index("Datetime", inplace=True)
                 minute_df.sort_index(inplace=True)
 
-                # ✅ Mantener solo datos a 1 minuto en `data_1m`
-                data_1m = minute_df.copy()
+                # Remove the last row from the hourly data
+                df = df.iloc[:-1]
 
-                print(f"[INFO] ✅ Datos descargados correctamente: {len(historical_data)} registros históricos, {len(data_1m)} registros a 1M.")
+                # Append the minute-resolution data using concat
+                df = pd.concat([df, minute_df])
 
-                # 🔹 Retornar ambos DataFrames
-                return historical_data, data_1m
-
-    print("[ERROR] ❌ No se obtuvieron datos.")
-    return pd.DataFrame(), pd.DataFrame()
-
+        return df
+    else:
+        return pd.DataFrame()
 
 def calculate_indicators(data, buffer_days=30, recent_days=total_days):
     """
@@ -159,20 +142,12 @@ def calculate_indicators(data, buffer_days=30, recent_days=total_days):
     # Calculamos el RSI utilizando el método de VisorTecnico (se usa period=5 y smooth_factor=3)
     data["RSI"] = TechnicalAnalysis.calculate_rsi(data, period=5, smooth_factor=3)
     
-        
-    # --- 2️⃣ MACD (Versión más reactiva) ---
-    fast_period, slow_period, signal_period = 6, 14, 5  # Periodos más cortos para mayor sensibilidad
-    data["EMA_6"] = data["Close"].ewm(span=fast_period, adjust=False).mean()  # EMA rápida
-    data["EMA_14"] = data["Close"].ewm(span=slow_period, adjust=False).mean()  # EMA lenta
-
-    # Cálculo del MACD y su señal
-    data["MACD"] = data["EMA_6"] - data["EMA_14"]
+    # --- 2️⃣ MACD ---
+    fast_period, slow_period, signal_period = 12, 26, 9
+    data["EMA_12"] = data["Close"].ewm(span=fast_period, adjust=False).mean()
+    data["EMA_26"] = data["Close"].ewm(span=slow_period, adjust=False).mean()
+    data["MACD"] = data["EMA_12"] - data["EMA_26"]
     data["MACD_Signal"] = data["MACD"].ewm(span=signal_period, adjust=False).mean()
-
-    # EMA para detección rápida de tendencia
-    data['EMA_20'] = data['Close'].ewm(span=20, adjust=False).mean()  # EMA de tendencia
-
-    
     
     # --- 3️⃣ ATR ---
     atr_period = 14
@@ -209,76 +184,51 @@ def calculate_indicators(data, buffer_days=30, recent_days=total_days):
     return data
 
 
-def prepare_for_export(historical_data, data_1m):
+def prepare_for_export(data):
     """
-    Prepara y exporta ambos DataFrames: históricos y de 1 minuto.
+    Prepara los datos antes de exportarlos a JSON.
+    Convierte la columna 'Datetime' a un timestamp en milisegundos.
     """
     print("[INFO] Preparando datos para exportación...")
-
-    if 'Datetime' in historical_data.columns:
-        historical_data['Datetime'] = historical_data['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
-    if 'Datetime' in data_1m.columns:
-        data_1m['Datetime'] = data_1m['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
-
-    json_data = {
-        "historical_data": historical_data.to_dict(orient="records"),
-        "data_1m": data_1m.to_dict(orient="records")
-    }
-
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reports")
-    os.makedirs(output_dir, exist_ok=True)
-
-    output_file = os.path.join(output_dir, "ETHUSD_CapitalData.json")
-
-    with open(output_file, 'w') as f:
-        json.dump(json_data, f, indent=4)
-
-    print(f"[INFO] ✅ Datos guardados correctamente en {output_file}")
-
+    if 'Datetime' in data.columns:
+        data['Datetime'] = data['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
+    print("[INFO] Datos listos para exportar.")
+    return data
 
 # Obtener EPIC
 epic = get_epic(ticker)
 if epic:
-    # 📌 Definir fechas de descarga
+    # Descargar datos de los últimos días
     end_date = datetime.now(pytz.UTC)
     start_date = end_date - timedelta(days=total_days)
     print(f"[INFO] Descargando datos desde {start_date.strftime('%Y-%m-%d')} hasta {end_date.strftime('%Y-%m-%d')}")
 
-    # 📌 Descargar datos (se obtienen DOS DataFrames: histórico y 1M, renombrado a `data`)
-    historical_data, data = download_data_capital(epic, interval, start_date, end_date)
-
-    # ✅ Verificar si ambos DataFrames están vacíos
-    if historical_data.empty and data.empty:
+    data = download_data_capital(epic, interval, start_date, end_date)
+    if data.empty:
         print("[ERROR] No se obtuvieron datos de la API de Capital.com.")
     else:
-        # ✅ Aplicar indicadores a **ambos** DataFrames (historical_data y data)
-        historical_data = calculate_indicators(historical_data, buffer_days=buffer_days, recent_days=total_days)
+        # Calcular indicadores
         data = calculate_indicators(data, buffer_days=buffer_days, recent_days=total_days)
-
-        # ✅ Filtrar solo los últimos 365 días en `historical_data`
+        
+        # Filtrar datos de los últimos period_days
         start_filter_date = end_date - timedelta(days=period_days)
         start_filter_date = pd.Timestamp(start_filter_date).tz_localize(None)
-        print(f"[INFO] Filtrando datos históricos desde {start_filter_date.strftime('%Y-%m-%d')}")
-        historical_data = historical_data[historical_data.index >= start_filter_date]
+        print(f"[INFO] Filtrando datos desde {start_filter_date.strftime('%Y-%m-%d')}")
+        data = data[data.index >= start_filter_date]
+        
+        # Preparar datos para exportación
+        data = prepare_for_export(data)
 
-        # ✅ Preparar ambos DataFrames para exportación
-        prepare_for_export(historical_data, data)
-
-        # 📌 Directorio de exportación
+        # Guardar archivo JSON con clave 'data'
         output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reports")
         os.makedirs(output_dir, exist_ok=True)
 
-        # 📌 Guardar archivo JSON con **ambos** conjuntos de datos
         output_file = os.path.join(output_dir, "ETHUSD_CapitalData.json")
-        json_data = {
-            "historical_data": historical_data.to_dict(orient="records"),
-            "data": data.to_dict(orient="records")  # 📌 Cambiado de `data_1m` a `data`
-        }
+        json_data = {"data": data.to_dict(orient="records")}
 
         with open(output_file, 'w') as f:
             json.dump(json_data, f, indent=4)
 
-        # ✅ Verificación de guardado exitoso
         if os.path.exists(output_file):
             print(f"[INFO] ✅ Datos guardados correctamente en {output_file}")
         else:

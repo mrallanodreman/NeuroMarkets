@@ -24,7 +24,7 @@ class TradingOperator(QObject):
         self.log_process_data = []
         # Se elimina el uso de estados y escalado/desescalado
         self.capital_ops = CapitalOP()
-        self.account_id = "260494821678994628"
+        self.account_id = "260383560551191748"
         self.capital_ops.set_account_id(self.account_id)
         self.positions = []
         self.saldo_update_callback = saldo_update_callback
@@ -236,17 +236,17 @@ class TradingOperator(QObject):
 
     def process_open_positions(self, account_id, capital_ops, current_price, features):
         try:
-            print("[DEBUG] Procesando posiciones abiertas (SELL).")
-            _, sell_positions = capital_ops.get_open_positions()
-            print(f"[INFO] Procesando {len(sell_positions)} posiciones SELL abiertas.")
+            print("[DEBUG] Procesando posiciones abiertas (BUY).")
+            buy_positions, _ = capital_ops.get_open_positions()
+            print(f"[INFO] Procesando {len(buy_positions)} posiciones Buy abiertas.")
             formatted_positions = []
             now_time = datetime.now(timezone.utc)
-            for position in sell_positions:
+            for position in buy_positions:
                 position_data = position.get("position", {})
                 market_data = position.get("market", {})
                 required_keys = ["level", "direction", "size", "createdDateUTC"]
                 if any(key not in position_data or position_data[key] is None for key in required_keys):
-                    print(f"[ERROR] Posición SELL incompleta: {position_data}")
+                    print(f"[ERROR] Posición BUY incompleta: {position_data}")
                     continue
                 deal_id = position_data.get("dealId") or f"temp_{id(position)}"
                 try:
@@ -330,14 +330,13 @@ class TradingOperator(QObject):
 
     def process_data(self, row, positions, balance):
         """
-        Procesa los datos actuales usando la estrategia, validando las posiciones y registrando la tendencia.
+        Procesa los datos actuales usando la estrategia y valida las posiciones.
         """
         try:
             if row is None:
                 print("[ERROR] ❌ La fila de datos es None.")
                 return
-
-            # Convertir la fila en diccionario si es necesario
+            # Si 'row' es un pandas.Series, lo convertimos a dict y añadimos 'Datetime' usando el índice.
             if isinstance(row, pd.Series):
                 dt = row.name  # El índice contiene la fecha/hora
                 row = row.to_dict()
@@ -346,37 +345,19 @@ class TradingOperator(QObject):
                 print("[ERROR] ❌ La fila de datos no es válida.")
                 return
 
-            # Verificar si faltan características esenciales en la fila
             missing_features = [f for f in self.features if f not in row]
             if missing_features:
                 print(f"[ERROR] ❌ Faltan estas características en `row`: {missing_features}")
                 return
 
-            # ✅ Asegurar que `self.strategy` tiene la función `load_historical_data`
-            if not hasattr(self.strategy, 'load_historical_data'):
-                print("[ERROR] ❌ `self.strategy` no tiene el método `load_historical_data`. Revisa la clase `Strategia`.")
-                return
-
-            # ✅ Cargar datos históricos y datos en 1M desde `self.strategy`
-            historical_data, data = self.strategy.load_historical_data()
-
-            # ✅ Verificar si ambos DataFrames se cargaron correctamente
-            if historical_data.empty or data.empty:
-                print("[ERROR] ❌ No se pudieron cargar correctamente los datos históricos o de 1M (están vacíos).")
-                return
-
-            # ✅ Detectar tendencia usando `historical_data`
-            trend = self.strategy.detect_trend(historical_data)
-
-            # ✅ Obtener posiciones abiertas
             buy_positions, sell_positions = self.capital_ops.get_open_positions()
             num_buy_positions = len(buy_positions)
             num_sell_positions = len(sell_positions)
             max_buy_positions = self.capital_ops.max_buy_positions
             max_sell_positions = self.capital_ops.max_sell_positions
-            print(f"[INFO] 📊 Posiciones actuales: BUY={num_buy_positions}, SELL={num_sell_positions} (Máx SELL: {max_sell_positions})")
+            print(f"[INFO] 📊 Posiciones actuales: BUY={num_buy_positions}, SELL={len(sell_positions)} (Máx BUY: {max_sell_positions})")
 
-            # ✅ Usar valores originales sin escalado
+            # Usamos directamente los valores originales sin escalado
             values = {
                 "Datetime": self.format_datetime(row["Datetime"]),
                 "Close": row["Close"],
@@ -386,21 +367,18 @@ class TradingOperator(QObject):
                 "VolumeChange": row.get("VolumeChange", 0)
             }
 
-            # ✅ Límite alcanzado para posiciones SELL
-            if num_sell_positions >= max_sell_positions:
+            if num_buy_positions >= max_buy_positions:
                 print("[INFO] 🚨 Límite de posiciones SHORT alcanzado. No se abrirá una nueva posición.")
                 log_entry = {
                     "datetime": values["Datetime"],
                     "current_price": float(row["Close"]),
                     "balance": float(self.balance),
-                    "decision": "HOLD - 🚨 Límite de posiciones SHORT alcanzado",
-                    "trend": trend,
+                    "decision": "HOLD - 🚨 Límite de posiciones BUY alcanzado",
                     "values": values
                 }
                 self.log_process_data.append(log_entry)
                 return
 
-            # ✅ Decidir acción según la estrategia
             decision = self.strategy.decide(
                 current_price=row["Close"],
                 balance=self.balance,
@@ -413,37 +391,30 @@ class TradingOperator(QObject):
                 market_id="ETHUSD",
             )
 
-            # ✅ Registro de la decisión
             log_entry = {
                 "datetime": values["Datetime"],
                 "current_price": float(row["Close"]),
                 "balance": float(self.balance),
                 "decision": decision["action"],
-                "reason": decision.get("reason", "Sin razón proporcionada"),
-                "trend": trend,
+                "reason": decision.get("reason", "Sin razón proporcionada"),  # 👈 Añadir la razón
                 "values": values
             }
+
             self.log_process_data.append(log_entry)
 
-            # ✅ Ejecutar posición si se toma acción de Short
-            if decision["action"] == "Short":
+            if decision["action"] == "buy":
                 self.capital_ops.open_position(
                     market_id=decision["market_id"],
-                    direction="SELL",
+                    direction="BUY",
                     size=decision["size"],
                     stop_loss=decision.get("stop_loss"),
                     take_profit=decision.get("take_profit")
                 )
 
-            # ✅ Imprimir el log completo con tendencia
-            print(f"[INFO] Log actualizado desde Process Data:")
-            print(f"📈 TREND DETECTADO: {trend}")
-            print(json.dumps(log_entry, ensure_ascii=False, indent=4))
+            print(f"[INFO] Log actualizado Desde Process Data (Decide): {json.dumps(log_entry, ensure_ascii=False, indent=4)}")
 
         except Exception as e:
             print(f"[ERROR] ❌ Error en process_data: {e}")
-             
-
 
 
 
@@ -485,25 +456,22 @@ class TradingOperator(QObject):
 
     def print_log(self):
         """Imprime el log detallado de las operaciones, formateado por origen."""
-        print("[INFO] 📋 Registro de operaciones detallado:")
+        print("[INFO] Registro de operaciones detallado:")
 
         if not self.log_open_positions and not self.log_process_data:
-            print("[INFO] 🚫 Los logs están vacíos. No hay datos para imprimir.")
+            print("[INFO] Los logs están vacíos. No hay datos para imprimir.")
             return
 
-        # Logs desde process_data
         if self.log_process_data:
-            print("[INFO] 📑 Registro desde process_data:")
+            print("[INFO] Registro desde process_data:")
             for entry in self.log_process_data:
-                print("=" * 50)
-                print("[ORIGEN] 📥 process_data")
+                print("=" * 40)
+                print("[ORIGEN] process_data")
                 print(f"📉 Precio actual: {entry['current_price']:.2f}")
                 print(f"💰 Balance disponible: {entry['balance']:.2f}")
                 print(f"🔥 Decisión tomada: {entry['decision']}")
                 if 'reason' in entry:
                     print(f"📝 Razón: {entry['reason']}")
-                if 'trend' in entry:
-                    print(f"📈 Tendencia detectada: {entry['trend']}")
 
                 print("📊 Valores De la deisicion :")
                 if "values" in entry:
@@ -512,26 +480,27 @@ class TradingOperator(QObject):
                             print(f"  {key}: {value}")
                 print("=" * 40)
 
-        # Logs desde process_open_positions
         if self.log_open_positions:
-            print("[INFO] 📑 Registro desde process_open_positions:")
+            print("[INFO] Registro desde process_open_positions:")
             for entry in self.log_open_positions:
-                print("=" * 50)
-                print("[ORIGEN] 📤 process_open_positions")
+                print("=" * 40)
+                print("[ORIGEN] process_open_positions")
                 print(f"📅 Fecha: {entry['datetime']}")
                 print(f"📉 Precio actual: {entry['current_price']:.2f}")
                 num_buy = sum(1 for pos in entry.get("positions", []) if pos["direction"].upper() == "BUY")
                 num_sell = sum(1 for pos in entry.get("positions", []) if pos["direction"].upper() == "SELL")
-                print(f"📊 Posiciones abiertas: BUY={num_buy}, SELL={num_sell} (Máx permitido: {self.capital_ops.max_sell_positions})")
+                print(f"📊 Posiciones abiertas: BUY={num_buy}, SELL={num_sell} (Máx permitido: {self.capital_ops.max_buy_positions})")
                 print("📍 Posiciones evaluadas:")
                 for pos in entry.get("positions", []):
                     upl = pos.get('upl', 'N/A')
                     if upl != 'N/A' and upl is not None:
                         upl = float(upl)
-                        upl_str = f"\033[42m {upl:.5f} \033[0m" if upl >= 0 else f"\033[41m {upl:.5f} \033[0m"
+                        if upl >= 0:
+                            upl_str = f"\033[42m {upl:.5f} \033[0m"
+                        else:
+                            upl_str = f"\033[41m {upl:.5f} \033[0m"
                     else:
                         upl_str = "N/A"
-
                     print("=" * 40)
                     print(f"  - 🎯 Instrumento: {pos.get('instrument', 'N/A')}")
                     print(f"  - 🔀 Dirección: {pos.get('direction', 'N/A')}")
@@ -539,20 +508,16 @@ class TradingOperator(QObject):
                     print(f"  - 💵 Precio de apertura: {pos.get('price', 'N/A')}")
                     print(f"  - ⏳ Horas abiertas: {pos.get('hours_open', 'N/A'):.2f} horas")
                     print(f"  - 📈 Ganancia/Pérdida: {upl_str}")
-
                     if "log" in pos:
                         for log_message in pos["log"]:
                             print(f"    📌 {log_message}")
                     print("=" * 40)
-
                 print(f"⚡ Acciones tomadas: {entry['actions_taken']}")
                 print(f"📊 Características usadas: {entry['features']}")
-                print("=" * 50)
+                print("=" * 40)
 
-        # Limpiar los registros después de imprimir
         self.log_open_positions = []
         self.log_process_data = []
-
 
 if __name__ == "__main__":
     try:

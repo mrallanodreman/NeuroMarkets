@@ -2,6 +2,10 @@ from EthSession import CapitalOP
 import pickle
 from datetime import datetime, timezone
 import json
+import os
+import json
+import pandas as pd
+
 
 capital_ops = CapitalOP()
 
@@ -33,6 +37,145 @@ class Strategia:
             print("[WARNING] `position_tracker.json` no encontrado o corrupto. Se inicia vacío.")
             self.position_tracker = {}
 
+    def load_historical_data(self):
+        """
+        Carga los datos históricos y los datos de 1 minuto desde el archivo JSON generado por DataEth.py.
+        """
+        file_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reports", "ETHUSD_CapitalData.json")
+
+        print(f"[DEBUG] 📁 Buscando archivo en: {file_path}")
+
+        if not os.path.exists(file_path):
+            print("[ERROR] ❌ No se encontró el archivo de datos históricos:", file_path)
+            return pd.DataFrame(), pd.DataFrame()
+
+        try:
+            with open(file_path, "r") as file:
+                json_data = json.load(file)
+
+            # ✅ Acceder correctamente a "data" en lugar de "data_1m"
+            if "historical_data" not in json_data or "data" not in json_data:
+                print("[ERROR] ❌ El archivo JSON no contiene las claves esperadas ('historical_data' y 'data').")
+                return pd.DataFrame(), pd.DataFrame()
+
+            historical_data = pd.DataFrame(json_data["historical_data"])
+            data = pd.DataFrame(json_data["data"])  # 🔥 Ahora accede correctamente
+
+            # ✅ Convertir "Datetime" a formato datetime y establecer como índice
+            for df in [historical_data, data]:
+                if "Datetime" in df.columns:
+                    df["Datetime"] = pd.to_datetime(df["Datetime"], unit="ms", errors="coerce")
+                    df.dropna(subset=["Datetime"], inplace=True)
+                    df.set_index("Datetime", inplace=True)
+                    df.sort_index(inplace=True)
+
+            print(f"[INFO] ✅ Datos cargados correctamente: {len(historical_data)} registros históricos, {len(data)} registros de 1M.")
+
+            return historical_data, data  # ✅ Ahora sí devuelve `data` correctamente
+
+        except Exception as e:
+            print("[ERROR] ❌ Error al cargar el archivo de datos históricos:", str(e))
+            return pd.DataFrame(), pd.DataFrame()
+
+
+
+    def detect_trend(self, historical_data): 
+        """
+        Detecta la tendencia actual del mercado utilizando MACD, EMAs y análisis de mínimos correctamente.
+        Se basa exclusivamente en `historical_data`.
+        """
+        historical_data, _ = self.load_historical_data()  # Usamos solo historical_data
+
+        if historical_data.empty or len(historical_data) < 6:
+            return "⚠️ Datos insuficientes para determinar tendencia"
+
+        # Convertir posibles valores de diccionario en "Low"
+        if isinstance(historical_data["Low"].iloc[0], dict):
+            historical_data["Low"] = historical_data["Low"].apply(lambda x: (x["bid"] + x["ask"]) / 2 if isinstance(x, dict) else x)
+
+        latest_data = historical_data.iloc[-1]
+        previous_data = historical_data.iloc[-2]
+
+        trend = "Sin tendencia clara"
+
+        # ✅ Comparar precio reciente con el anterior
+        if latest_data["Close"] > previous_data["Close"]:
+            trend = "📈 Posible tendencia alcista"
+        elif latest_data["Close"] < previous_data["Close"]:
+            trend = "📉 Posible tendencia bajista"
+
+        # ✅ Confirmación de MACD
+        if latest_data["MACD"] > latest_data["MACD_Signal"] and latest_data["MACD"] > previous_data["MACD"]:
+            trend = "Tendencia alcista con impulso positivo"
+        elif latest_data["MACD"] < latest_data["MACD_Signal"] and latest_data["MACD"] < previous_data["MACD"]:
+            trend = "Tendencia bajista con impulso negativo"
+
+        # ✅ Confirmación con EMAs (Cambios rápidos)
+        if latest_data["EMA_6"] > latest_data["EMA_14"] and previous_data["EMA_6"] <= previous_data["EMA_14"]:
+            trend = "🚀 Cambio a tendencia alcista"
+        elif latest_data["EMA_6"] < latest_data["EMA_14"] and previous_data["EMA_6"] >= previous_data["EMA_14"]:
+            trend = "⚠️ Cambio a tendencia bajista"
+
+        # ✅ Confirmación con EMA de 20 períodos (Medio Plazo)
+        if latest_data["Close"] > latest_data["EMA_20"]:
+            trend += " (Confirmado en marco medio plazo)"
+        elif latest_data["Close"] < latest_data["EMA_20"]:
+            trend += " (Debilidad en marco medio plazo)"
+
+        # ✅ Confirmación con EMA de 50 períodos (Largo Plazo)
+        if latest_data["Close"] > latest_data["EMA_50"]:
+            trend += " (Confirmado en marco largo plazo)"
+        elif latest_data["Close"] < latest_data["EMA_50"]:
+            trend += " (Tendencia bajista en marco largo plazo)"
+
+        # ✅ Volatilidad con ATR (Usando historical_data en lugar de data)
+        if latest_data["ATR"] > historical_data["ATR"].mean():
+            trend += " con alta volatilidad"
+
+        # ✅ Impulso confirmado con RSI
+        if latest_data["RSI"] > 70:
+            trend += " 🚀 Posible sobrecompra"
+        elif latest_data["RSI"] < 30:
+            trend += " 🔄 Posible sobreventa"
+
+        # 🚀 **Análisis de los últimos 6 Low**
+        last_lows = historical_data["Low"].tail(6).values
+        up_count = sum(last_lows[i] < last_lows[i + 1] for i in range(len(last_lows) - 1))
+        down_count = sum(last_lows[i] > last_lows[i + 1] for i in range(len(last_lows) - 1))
+
+        if up_count >= 4:
+            trend = "📈 Tendencia alcista (Mínimos ascendentes)"
+        elif down_count >= 4:
+            trend = "📉 Tendencia bajista (Mínimos descendentes)"
+
+        # 🚩 Bandas de Bollinger - Detección dinámica
+        upper_band = latest_data["EMA_20"] + (2 * latest_data["BB_width"])
+        lower_band = latest_data["EMA_20"] - (2 * latest_data["BB_width"])
+        current_price = latest_data["Close"]
+
+        if current_price <= lower_band:
+            trend += " | 🔄 Cerca de Banda Inferior (Posible rebote)"
+        elif current_price >= upper_band:
+            trend += " | 🔻 Cerca de Banda Superior (Posible rechazo)"
+
+        # 🚩 Soporte y Resistencia (Últimos 50 registros en historical_data)
+        support_level = min(historical_data["Low"].tail(50))
+        resistance_level = max(historical_data["High"].tail(50))
+
+        # ✅ Rebotes en soportes y resistencias
+        if abs(current_price - support_level) / support_level <= 0.03:
+            if latest_data["RSI"] < 35 and latest_data["MACD"] > latest_data["MACD_Signal"]:
+                trend += f" | 🔄 Rebote confirmado en soporte ({support_level:.2f})"
+
+        if abs(current_price - resistance_level) / resistance_level <= 0.03:
+            if latest_data["RSI"] > 65 and latest_data["MACD"] < latest_data["MACD_Signal"]:
+                trend += f" | 🔻 Rechazo confirmado en resistencia ({resistance_level:.2f})"
+
+        return trend
+
+
+
+
     def decide(self, current_price, balance, features, market_id, open_positions=None):
         leverage = 20  # Apalancamiento
         balance_base = 8.0  # Balance base de referencia
@@ -62,13 +205,20 @@ class Strategia:
         rsi = features.get("RSI", 0)
         macd = features.get("MACD", 0)
         atr = features.get("ATR", 0)
-        adx = features.get("ADX", 0)  # Fuerza de la tendencia
         volume_change = features.get("VolumeChange", 0)
         obv = features.get("OBV", 0)  # Confirmación de tendencia con volumen
 
-        # 📌 Evaluación del volumen de la sesión actual frente al histórico
-        recent_volume = sum(entry.get("Volume", 0) for entry in self.price_history[-10:]) / 10
-        avg_volume = sum(entry.get("Volume", 0) for entry in self.price_history[-50:]) / 50 if len(self.price_history) >= 50 else recent_volume
+        # Calcular el volumen reciente y el volumen promedio (si hay suficientes datos)
+        if len(self.price_history) >= 10:
+            recent_volume = sum(entry.get("Volume", 0) for entry in self.price_history[-10:]) / 10
+        else:
+            recent_volume = 0
+
+        if len(self.price_history) >= 50:
+            avg_volume = sum(entry.get("Volume", 0) for entry in self.price_history[-50:]) / 50
+        else:
+            avg_volume = recent_volume
+
 
         # 📌 Función para calcular el tamaño de posición
         def calculate_position_size(balance, leverage, current_price, risk_factor, min_size=0.009, max_size=0.009):
@@ -78,20 +228,21 @@ class Strategia:
             margin_required = (position_size * abs(current_price)) / leverage
             return round(position_size, 4), margin_required
 
-        # 🚨 **Evitar operar en mercados laterales sin tendencia (ADX < 20)**
-        if adx < 20:
-            return {"action": "hold", "size": 0, "reason": "ADX bajo, mercado sin tendencia definida"}
-
+        
         # 🚨 **Evitar operar en sesiones de bajo volumen**
         if recent_volume < avg_volume * 0.5:
             return {"action": "hold", "size": 0, "reason": "Volumen actual bajo, posible falta de movimiento"}
 
-        # 🚨 **Evitar operar en condiciones de posible rebote**
-        if volume_change > 0 and (rsi > 45 or obv > 0):
-            return {"action": "hold", "size": 0, "reason": "Posible rebote detectado, evitando Short"}
+        # Detectar rebote abrupto basado en el cambio porcentual del precio
+        if len(self.price_history) > 1:
+            prev_close = self.price_history[-2].get("Close", current_price)
+            price_change_pct = (current_price - prev_close) / prev_close
+            # Si el precio sube abruptamente (por ejemplo, más del 0.5%) en la última barra,
+            # se podría interpretar como un rebote y, por lo tanto, evitar abrir una posición Short.
+            if price_change_pct > 0.005:
+                return {"action": "hold", "size": 0, "reason": "Rebote abrupto detectado (cambio > 0.5%), evitando Short"}
 
-        # 🚨 **Confirmación de debilidad para Short**
-        if rsi >= 40 or macd > -1:
+        if not (rsi < 40 and macd < -1):
             return {"action": "hold", "size": 0, "reason": "Indicadores no confirman suficiente debilidad para Short"}
 
         # 📌 Evaluación del ATR para evitar mercados laterales
@@ -126,18 +277,18 @@ class Strategia:
         # 📌 **Condiciones óptimas para Short**
         position_size, margin_required = calculate_position_size(balance, leverage, current_price, 0.01)
 
-        # 🔻 **Confirmación de condiciones bajistas con RSI, MACD y OBV**
-        if rsi < 32 and macd < -1 and obv < 0 and balance >= margin_required:
+        # ✅ Condición alternativa sin usar avg_atr
+        if volume_change < -0.3 and atr > 5 and balance >= margin_required:
             return {
                 "action": "Short",
                 "size": position_size,
                 "market_id": market_id,
                 "margin_required": margin_required,
-                "reason": "RSI bajo, MACD negativo y OBV en tendencia bajista, indicando debilidad"
+                "reason": "Volumen en descenso y alta volatilidad detectada por ATR elevado"
             }
 
         # 🔻 **Condiciones alternativas para Short: Volumen de venta y ATR alto**
-        if volume_change < -0.5 and atr > avg_atr * 0.8 and balance >= margin_required:
+        if volume_change < -0.3 and atr > 5 and balance >= margin_required:
             return {
                 "action": "Short",
                 "size": position_size,
@@ -148,6 +299,9 @@ class Strategia:
 
         # 🚨 **Si no se cumplen condiciones para Short, mantener posición**
         return {"action": "hold", "size": 0, "reason": "No se cumple ninguna condición para abrir posición"}
+
+
+        
 
     def evaluate_positions(self, positions, current_price, features):
         """

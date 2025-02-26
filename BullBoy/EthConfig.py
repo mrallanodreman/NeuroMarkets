@@ -20,7 +20,7 @@ import importlib
 BASE_URL = "https://api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 MARKET_SEARCH_ENDPOINT = "/api/v1/markets"
-API_KEY = None  
+API_KEY = None 
 LOGIN = None 
 PASSWORD = None 
 DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
@@ -312,7 +312,7 @@ def main():
     console.print(f"\n[bold green]Cuenta seleccionada: {selected_account.get('accountName')} (ID: {new_account_id})[/bold green]")
     console.print("[bold green]Autoconfiguración completada. El bot está listo para operar.[/bold green]\n")
     
-    update_account_id_in_file("SharkBoy.py", new_account_id)
+    update_account_id_in_file("Ragnar.py", new_account_id)
     
     show_config_summary(console, username, selected_account)
 
