@@ -26,19 +26,6 @@ PASSWORD = None
 DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
 OPERATION_MODE = "real"  # Puede ser "demo" o "real"
 
-ENCODED_KEY = "Y2xhdmVj" 
-KEY = base64.b64decode(ENCODED_KEY).decode('utf-8')
-
-
-# Lista encriptada de usuarios autorizados 
-WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a 200404180106"
-
-def xor_encrypt(text, key=KEY):
-    result = []
-    for i, ch in enumerate(text):
-        result.append(chr(ord(ch) ^ ord(key[i % len(key)])))
-    return ''.join(f"{ord(c):02x}" for c in result)
-
 def update_account_id_in_file(filename, new_account_id):
     """
     Busca en el archivo 'filename' la asignación de account_id y reemplaza
@@ -216,13 +203,6 @@ def main():
         import EthSession
         importlib.reload(EthSession)
     
-    username = Prompt.ask("[bold cyan]Ingrese su nombre de usuario[/bold cyan]")
-    encrypted_username = xor_encrypt(username, KEY)
-    allowed_users = WHITELIST_ENCRYPTED.split()
-    
-    if encrypted_username not in allowed_users:
-        console.print("[bold red]Usuario no autorizado. Acceso denegado.[/bold red]")
-        return
     console.print("[bold green]Usuario autorizado. Iniciando proceso de configuración...[/bold green]\n")
     
     from EthSession import CapitalOP
