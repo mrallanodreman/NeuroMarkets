@@ -81,10 +81,10 @@ Archivo JSON que almacena las posiciones abiertas, incluyendo detalles sobre las
 
 
 ### ⚙️  7 Visualización Técnica (VisorTecnico.py):
-
 Proporciona herramientas para el análisis  de indicadores técnicos... 
 
-
+## ⚙️ DEPLOYMENTS ⚙️
+Algunas herramientas que ayudan en el trading y monitoreo de mecados..
 
 
 ### 🔧 Variables Configurables
