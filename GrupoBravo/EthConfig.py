@@ -20,18 +20,11 @@ import importlib
 BASE_URL = "https://api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 MARKET_SEARCH_ENDPOINT = "/api/v1/markets"
-API_KEY = "dshUTxIDbHEtaOJS" 
-LOGIN = "odremanallanr@gmail.com"
-PASSWORD = "Millo2025."
+API_KEY = None
+LOGIN = None
+PASSWORD = None
 DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
 OPERATION_MODE = "real"  # Puede ser "demo" o "real"
-
-ENCODED_KEY = "Y2xhdmVj" 
-KEY = base64.b64decode(ENCODED_KEY).decode('utf-8')
-
-
-# Lista encriptada de usuarios autorizados 
-WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a 200404180106"
 
 def xor_encrypt(text, key=KEY):
     result = []
@@ -130,11 +123,10 @@ def prompt_and_update_credentials(console):
     update_config_file(__file__, config_updates)
     console.print("[bold green]Credenciales y configuración actualizadas correctamente.[/bold green]")
 
-def show_config_summary(console, username, selected_account):
+def show_config_summary(console, selected_account):
     summary_table = Table(title="Resumen de Autoconfiguración", box=box.DOUBLE_EDGE)
     summary_table.add_column("Parámetro", style="cyan", no_wrap=True)
     summary_table.add_column("Valor", style="magenta")
-    summary_table.add_row("Usuario", username)
     summary_table.add_row("Cuenta", selected_account.get("accountName", "N/A"))
     summary_table.add_row("Account ID", selected_account.get("accountId", "N/A"))
     summary_table.add_row("Fecha", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -309,7 +301,7 @@ def main():
     
     update_account_id_in_file("SharkBoy.py", new_account_id)
     
-    show_config_summary(console, username, selected_account)
+    show_config_summary(console, selected_account)
 
 
 if __name__ == "__main__":

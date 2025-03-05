@@ -414,7 +414,7 @@ class Strategia:
 
             # No se cierran posiciones en negativo
             if upl < 0:
-                msg = f"[DEBUG]  ganancia negativa ({upl * 100:.2f}%)."
+                msg = f"ganancia negativa ({upl * 100:.2f}%)."
                 print(msg)
                 position["reason"] += msg
                 continue

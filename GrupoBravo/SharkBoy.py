@@ -38,7 +38,7 @@ class TradingOperator(QObject):
         self.log_process_data = []
         # Se elimina el uso de estados y escalado/desescalado
         self.capital_ops = CapitalOP()
-        self.account_id = "260494821678994628"
+        self.account_id = "260383560551191748"
         self.capital_ops.set_account_id(self.account_id)
         self.positions = []
         self.saldo_update_callback = saldo_update_callback

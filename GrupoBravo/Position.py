@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 BASE_URL = "https://api-capital.backend-capital.com"
 SESSION_ENDPOINT = "/api/v1/session"
 POSITIONS_ENDPOINT = "/api/v1/positions"
-API_KEY = "dshUTxIDbHEtaOJS"
-LOGIN = "odremanallanr@gmail.com"
-PASSWORD = "Millo2025."
+API_KEY = None
+LOGIN = None
+PASSWORD = None
 
 def authenticate():
     url = BASE_URL + SESSION_ENDPOINT
