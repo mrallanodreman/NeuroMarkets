@@ -13,7 +13,6 @@ from EthSession import CapitalOP  # Importar autenticación desde EthSession
 from VisorTecnico import TechnicalAnalysis  # Usamos el cálculo de RSI correcto
 from ta.momentum import RSIIndicator, StochasticOscillator
 
-
 # Configuración
 ticker = "ETHUSD"
 interval = "HOUR"  # Capital.com usa "HOUR", "MINUTE", "DAY"
@@ -56,7 +55,7 @@ def download_data_capital(epic, interval, start_date, end_date):
     """
     Descarga datos históricos desde Capital.com y mantiene dos DataFrames:
     1. historical_data -> Contiene los datos históricos en la resolución original.
-    2. data_1m -> Contiene los datos a 1 minuto.
+    2. data -> Contiene los datos a 1 minuto con un buffer adecuado.
     """
     all_data = []
     current_date = start_date
@@ -66,7 +65,6 @@ def download_data_capital(epic, interval, start_date, end_date):
         seg_end_date = min(current_date + timedelta(days=segment_days), end_date)
         print(f"[INFO] Descargando datos {interval}: {current_date.strftime('%Y-%m-%d')} - {seg_end_date.strftime('%Y-%m-%d')}")
 
-        # 📌 Descarga datos en la resolución original (ej: HOUR, DAY)
         prices_url = f"{capital_ops.base_url}/api/v1/prices/{epic}?resolution={interval}&from={current_date.strftime('%Y-%m-%dT%H:%M:%S')}&to={seg_end_date.strftime('%Y-%m-%dT%H:%M:%S')}"
         headers = {
             "Content-Type": "application/json",
@@ -77,9 +75,9 @@ def download_data_capital(epic, interval, start_date, end_date):
 
         response = requests.get(prices_url, headers=headers)
         if response.status_code == 200:
-            data = response.json().get("prices", [])
-            if data:
-                all_data.extend(data)
+            data_json = response.json().get("prices", [])
+            if data_json:
+                all_data.extend(data_json)
             else:
                 print(f"[WARNING] No se encontraron datos para {current_date} - {seg_end_date}")
         else:
@@ -98,46 +96,61 @@ def download_data_capital(epic, interval, start_date, end_date):
             'closePrice': 'Close',
             'lastTradedVolume': 'Volume'
         }, inplace=True)
-
         df["Datetime"] = pd.to_datetime(df["Datetime"])
         df.set_index("Datetime", inplace=True)
         df.sort_index(inplace=True)
-
-        # ✅ Guardar copia de los datos históricos antes de modificar `df`
         historical_data = df.copy()
 
-        # ✅ Descarga de datos a 1 minuto
+        # ✅ Descargar 2 horas de datos en intervalos de 1 hora cada uno
         last_hour = df.index[-1]
-        minute_prices_url = f"{capital_ops.base_url}/api/v1/prices/{epic}?resolution=MINUTE&from={last_hour.strftime('%Y-%m-%dT%H:%M:%S')}&to={(last_hour + timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S')}"
-        
-        response = requests.get(minute_prices_url, headers=headers)
-        if response.status_code == 200:
-            minute_data = response.json().get("prices", [])
-            if minute_data:
-                minute_df = pd.DataFrame(minute_data)
-                minute_df.rename(columns={
-                    'snapshotTimeUTC': 'Datetime',
-                    'openPrice': 'Open',
-                    'highPrice': 'High',
-                    'lowPrice': 'Low',
-                    'closePrice': 'Close',
-                    'lastTradedVolume': 'Volume'
-                }, inplace=True)
+        buffer_hours = 4  # 🔹 2 horas de buffer
+        data_minute = []
 
-                minute_df["Datetime"] = pd.to_datetime(minute_df["Datetime"])
-                minute_df.set_index("Datetime", inplace=True)
-                minute_df.sort_index(inplace=True)
+        for i in range(buffer_hours):
+            hour_start = last_hour - timedelta(hours=buffer_hours - i)
+            hour_end = hour_start + timedelta(hours=1)
 
-                # ✅ Mantener solo datos a 1 minuto en `data_1m`
-                data_1m = minute_df.copy()
+            print(f"[INFO] Descargando datos 1M: {hour_start.strftime('%Y-%m-%d %H:%M:%S')} - {hour_end.strftime('%Y-%m-%d %H:%M:%S')}")
 
-                print(f"[INFO] ✅ Datos descargados correctamente: {len(historical_data)} registros históricos, {len(data_1m)} registros a 1M.")
+            minute_prices_url = (
+                f"{capital_ops.base_url}/api/v1/prices/{epic}"
+                f"?resolution=MINUTE&from={hour_start.strftime('%Y-%m-%dT%H:%M:%S')}"
+                f"&to={hour_end.strftime('%Y-%m-%dT%H:%M:%S')}"
+            )
+            response = requests.get(minute_prices_url, headers=headers)
 
-                # 🔹 Retornar ambos DataFrames
-                return historical_data, data_1m
+            if response.status_code == 200:
+                segment_data = response.json().get("prices", [])
+                if segment_data:
+                    data_minute.extend(segment_data)
+                else:
+                    print(f"[WARNING] No se encontraron datos para {hour_start} - {hour_end}")
+            else:
+                print(f"[ERROR] Fallo en la descarga: {response.status_code} - {response.text}")
+
+        if data_minute:
+            minute_df = pd.DataFrame(data_minute)
+            minute_df.rename(columns={
+                'snapshotTimeUTC': 'Datetime',
+                'openPrice': 'Open',
+                'highPrice': 'High',
+                'lowPrice': 'Low',
+                'closePrice': 'Close',
+                'lastTradedVolume': 'Volume'
+            }, inplace=True)
+            minute_df["Datetime"] = pd.to_datetime(minute_df["Datetime"])
+            minute_df.set_index("Datetime", inplace=True)
+            minute_df.sort_index(inplace=True)
+            data = minute_df.copy()
+
+            print(f"[INFO] ✅ Datos descargados correctamente: {len(historical_data)} registros históricos, {len(data)} registros a 1M.")
+
+            return historical_data, data
 
     print("[ERROR] ❌ No se obtuvieron datos.")
     return pd.DataFrame(), pd.DataFrame()
+
+
 
 def calculate_indicators(data, buffer_days=30, recent_days=395):
     """
@@ -148,8 +161,8 @@ def calculate_indicators(data, buffer_days=30, recent_days=395):
 
     print("[INFO] Calculando indicadores esenciales...")
 
-    # Filtrar los datos para usar solo los últimos `recent_days`
-    cutoff_date = data.index.max() - pd.Timedelta(days=recent_days)
+    # 📌 NO FILTRAR EL BUFFER antes de calcular los indicadores
+    cutoff_date = data.index.max() - pd.Timedelta(days=recent_days + buffer_days)
     data = data.loc[data.index >= cutoff_date].copy()
 
     # Convertir precios de diccionario a valores medios (si es necesario)
@@ -157,6 +170,11 @@ def calculate_indicators(data, buffer_days=30, recent_days=395):
         if isinstance(data[col].iloc[0], dict):
             print(f"[INFO] Extrayendo valores medios de precios en {col}...")
             data[col] = data[col].apply(lambda x: (x["bid"] + x["ask"]) / 2 if isinstance(x, dict) else x)
+
+    # 📌 VERIFICAR QUE HAY SUFICIENTES DATOS PARA RSI (debería haber al menos 20 registros para RSI de 10)
+    if len(data) < 20:
+        print(f"[ERROR] No hay suficientes datos para calcular RSI (solo {len(data)} registros).")
+        return data
 
     # --- 1️⃣ RSI ---
     # Se calculan tres RSI con diferentes períodos
@@ -166,20 +184,15 @@ def calculate_indicators(data, buffer_days=30, recent_days=395):
 
     # --- 2️⃣ MACD y EMAs ---
     fast_period, slow_period, signal_period = 6, 14, 5
+    data["EMA_3"] = data["Close"].ewm(span=3, adjust=False).mean()
+    data["EMA_6"] = data["Close"].ewm(span=fast_period, adjust=False).mean()
+    data["EMA_9"] = data["Close"].ewm(span=9, adjust=False).mean()
+    data["EMA_14"] = data["Close"].ewm(span=slow_period, adjust=False).mean()
+    data["EMA_20"] = data["Close"].ewm(span=20, adjust=False).mean()
+    data["EMA_50"] = data["Close"].ewm(span=50, adjust=False).mean()
 
-    # Cálculo de EMAs con la misma estructura
-    data["EMA_3"] = data["Close"].ewm(span=3, adjust=False).mean()  # EMA ultrarrápida
-    data["EMA_6"] = data["Close"].ewm(span=fast_period, adjust=False).mean()  # EMA rápida
-    data["EMA_9"] = data["Close"].ewm(span=9, adjust=False).mean()  # EMA de corto plazo
-    data["EMA_14"] = data["Close"].ewm(span=slow_period, adjust=False).mean()  # EMA lenta
-    data["EMA_20"] = data["Close"].ewm(span=20, adjust=False).mean()  # EMA media
-    data["EMA_50"] = data["Close"].ewm(span=50, adjust=False).mean()  # EMA de tendencia macro
-
-    # Cálculo del MACD
     data["MACD"] = data["EMA_6"] - data["EMA_14"]
     data["MACD_Signal"] = data["MACD"].ewm(span=signal_period, adjust=False).mean()
-
-    # MACD Histogram
     data["MACD_Histogram"] = data["MACD"] - data["MACD_Signal"]
 
     # --- 3️⃣ ATR ---
@@ -209,12 +222,14 @@ def calculate_indicators(data, buffer_days=30, recent_days=395):
     data.fillna(0, inplace=True)
 
     print("[INFO] Indicadores esenciales calculados correctamente.")
-    print("[DEBUG] Primeros 10 registros después de calcular indicadores:")
-    print(data[["RSI", "RSI_5", "RSI_7", "MACD", "ATR", "VolumeChange", "Close"]].head(10))
+    print("[DEBUG] Primeros 20 registros después de calcular indicadores:")
+    print(data[["RSI", "RSI_5", "RSI_7", "MACD", "ATR", "VolumeChange", "Close"]].head(20))
 
     return data
 
-def prepare_for_export(historical_data, data_1m):
+
+
+def prepare_for_export(historical_data, data):
     """
     Prepara y exporta ambos DataFrames: históricos y de 1 minuto.
     """
@@ -222,12 +237,12 @@ def prepare_for_export(historical_data, data_1m):
 
     if 'Datetime' in historical_data.columns:
         historical_data['Datetime'] = historical_data['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
-    if 'Datetime' in data_1m.columns:
-        data_1m['Datetime'] = data_1m['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
+    if 'Datetime' in data.columns:
+        data['Datetime'] = data['Datetime'].apply(lambda x: int(x.timestamp() * 1000))
 
     json_data = {
         "historical_data": historical_data.to_dict(orient="records"),
-        "data_1m": data_1m.to_dict(orient="records")
+        "data": data.to_dict(orient="records")
     }
 
     output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Reports")
@@ -277,7 +292,7 @@ if epic:
         output_file = os.path.join(output_dir, "ETHUSD_CapitalData.json")
         json_data = {
             "historical_data": historical_data.to_dict(orient="records"),
-            "data": data.to_dict(orient="records")  # 📌 Cambiado de `data_1m` a `data`
+            "data": data.to_dict(orient="records")  # 📌 Cambiado de `data` a `data`
         }
 
         with open(output_file, 'w') as f:
