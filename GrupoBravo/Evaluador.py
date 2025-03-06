@@ -247,17 +247,16 @@ def evaluate_positions(positions, features, profittracker, debug_callback=None):
     to_close = []
     now_time = datetime.now(timezone.utc)
     min_threshold = 0.03
-    closure_pct = 0.90
+    closure_pct = 0.90  # Este valor se usaba para evaluar retrocesos en ganancias "normales"
 
     for position in positions:
         # Obtenemos el dealId completo desde la subclave "position"
         deal_id_full = position.get("position", {}).get("dealId", "N/A")
-        deal_id_short = deal_id_full[-4:]  # Tomamos sólo los primeros 4 caracteres
+        deal_id_short = deal_id_full[-4:]  # Tomamos sólo los últimos 4 caracteres
         deal_id = deal_id_short
 
-        # Obtenemos la fecha de creación también desde "position" si corresponde
+        # Obtenemos la fecha de creación desde "position"
         created_str = position.get("position", {}).get("createdDateUTC") or position.get("position", {}).get("createdDate")
-        
         hours_open = None
         if created_str:
             try:
@@ -284,10 +283,12 @@ def evaluate_positions(positions, features, profittracker, debug_callback=None):
         if debug_callback:
             debug_callback(f"DEBUG: Evaluando posición {deal_id} -> upl: {upl}")
 
+        # Si UPL es negativo, no se cierra la posición
         if upl < 0:
             position["reason"] += f"UPL negativo ({upl_percent:.2f}%). Sin acción."
             continue
 
+        # Actualizar o inicializar el max_profit para esta posición
         if deal_id not in profittracker:
             profittracker[deal_id] = {"max_profit": 0}
         prev_max = profittracker[deal_id].get("max_profit", 0)
@@ -300,7 +301,18 @@ def evaluate_positions(positions, features, profittracker, debug_callback=None):
             position["max_profit"] = prev_max
             position["reason"] += f"Sin actualización en el Max Profit (permanece en {prev_max*100:.2f}%). "
 
-        if upl > min_threshold and upl < position["max_profit"] * closure_pct:
+        # Nueva condición especial: si el max_profit supera el 30%,
+        # cualquier retroceso (upl menor que el max_profit) dispara el cierre inmediato.
+        if position["max_profit"] >= 0.30 and upl < position["max_profit"]:
+            position["reason"] += f"Cerrar recomendado por alta ganancia: retracción de {position['max_profit']*100:.2f}% a {upl_percent:.2f}%."
+            to_close.append({
+                "action": "Close",
+                "dealId": deal_id,
+                "size": position.get("size"),
+                "reason": position["reason"]
+            })
+        # Condición original para evaluar retrocesos en ganancias "normales"
+        elif upl > min_threshold and upl < position["max_profit"] * closure_pct:
             rsi  = features.get("RSI", 0)
             macd = features.get("MACD", 0)
             vol  = features.get("VolumeChange", 0)
@@ -317,6 +329,7 @@ def evaluate_positions(positions, features, profittracker, debug_callback=None):
         else:
             position["reason"] += f"No es necesario cerrar (UPL: {upl_percent:.2f}% es adecuado). "
 
+        # Cierre forzado si la posición ha estado abierta 24h o más y tiene ganancia sustancial (>= 50%)
         if isinstance(hours_open, (int, float)) and hours_open >= 24 and upl >= 0.5:
             position["reason"] += f"Cierre forzado: Abierta {hours_open:.1f}h, UPL {upl_percent:.2f}%."
             to_close.append({
