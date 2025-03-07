@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 
 # ------------------- Configuración de la API ------------------- #
-BASE_URL = "https://api-capital.backend-capital.com"
+BASE_URL = "https://demo-api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 POSITIONS_ENDPOINT = "/api/v1/positions"
 API_KEY = "dshUTxIDbHEtaOJS"
@@ -21,29 +21,37 @@ def authenticate():
     response.raise_for_status()
     return response.json(), response.headers
 
+def log_closed_position(details):
+    try:
+        with open("closed_positions.txt", "a", encoding="utf-8") as file:
+            timestamp = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+            entry = (f"{timestamp} | DealID: {details['dealId']} | EPIC: {details['epic']} | "
+                     f"Direction: {details['direction']} | Size: {details['size']} | "
+                     f"Reason: {details['reason']}\n")
+            file.write(entry)
+    except Exception as e:
+        print(f"[ERROR] No se pudo registrar cierre en archivo: {e}")
+
 def log_debug_message(panel, messages, message=None):
     """
-    Registra un mensaje de debug en el panel de debug.
-    Si 'message' es proporcionado, se agrega a la lista; de lo contrario, solo actualiza el panel.
-    Se limita la cantidad de mensajes a 10.
+    Registra un mensaje de debug en el panel.
+    Se limita a 10 mensajes.
     """
     if message:
         messages.append(message)
         if len(messages) > 10:
             messages.pop(0)
-    
     panel.erase()
     panel.box()
     safe_addstr(panel, 0, 2, "DEBUG LOG", curses.A_BOLD)
-    
     row = 1
     for msg in messages:
-        safe_addstr(panel, row, 2, msg[:panel.getmaxyx()[1] - 4])
+        safe_addstr(panel, row, 2, msg[:panel.getmaxyx()[1]-4])
         row += 1
     panel.refresh()
 
 def change_account(cst, security_token, account_id):
-    url = BASE_URL + SESSION_ENDPOINT
+    url = f"{BASE_URL.rstrip('/')}/api/v1/session"
     headers = {
         "X-CAP-API-KEY": API_KEY,
         "Content-Type": "application/json",
@@ -79,11 +87,6 @@ def safe_addstr(win, y, x, text, attr=curses.A_NORMAL):
             pass
 
 def calc_open_time(created_str):
-    """
-    Calcula el tiempo transcurrido desde que se abrió la posición.
-    Se espera que created_str esté en formato ISO.
-    Devuelve una cadena en formato "XhYY" (horas y minutos).
-    """
     try:
         if created_str.endswith("Z"):
             created_str = created_str.replace("Z", "+00:00")
@@ -99,10 +102,6 @@ def calc_open_time(created_str):
         return "N/A"
 
 def draw_positions_table(panel, positions_list, mode, previous_upl):
-    """
-    Dibuja la tabla de posiciones en el panel.
-    Se muestran: Instrumento, Epic, Dirección, Tamaño, Nivel, UPL, GStop, Abierto.
-    """
     panel.erase()
     panel.box()
     header = f"POSICIONES - Modo: {mode.upper()} (Presiona 'm','e','q')"
@@ -145,15 +144,7 @@ def draw_positions_table(panel, positions_list, mode, previous_upl):
             upl_val = float(position.get("upl", 0))
         except Exception:
             upl_val = 0.0
-        if upl_val < 0:
-            upl_str = f"{upl_val:10.4f}"
-            upl_color = curses.color_pair(1)
-        elif upl_val > 0:
-            upl_str = f"{upl_val:10.4f}"
-            upl_color = curses.color_pair(2)
-        else:
-            upl_str = f"{upl_val:10.4f}"
-            upl_color = attr_row
+        upl_str = f"{upl_val:10.4f}"
         gstop = "Si" if position.get("guaranteedStop", False) else "No"
         created_str = position.get("createdDateUTC") or position.get("createdDate")
         open_time = calc_open_time(created_str) if created_str else "N/A"
@@ -175,16 +166,8 @@ def draw_positions_table(panel, positions_list, mode, previous_upl):
 
     panel.refresh()
 
-
-# ---------------------------------------------------------------------
-# Función auxiliar para calcular horas abiertas (float)
 def get_hours_open(created_str):
-    """
-    Devuelve la diferencia en horas (float) desde 'created_str' hasta ahora (UTC).
-    Si hay algún error en el parseo, devuelve 0.0
-    """
     try:
-        # Manejar el sufijo 'Z' convirtiéndolo a '+00:00'
         if created_str.endswith("Z"):
             created_str = created_str.replace("Z", "+00:00")
         dt_created = datetime.fromisoformat(created_str)
@@ -192,24 +175,15 @@ def get_hours_open(created_str):
             dt_created = dt_created.replace(tzinfo=timezone.utc)
         now_utc = datetime.now(timezone.utc)
         delta = now_utc - dt_created
-        return delta.total_seconds() / 3600.0  # número de horas con decimales
+        return delta.total_seconds() / 3600.0
     except Exception:
         return 0.0
 
-
 def draw_decisions_table(panel, positions_list, width, mode):
-    """
-    Dibuja la tabla de decisiones con un tamaño vertical ajustado al contenido.
-    Se muestran: DealID, Max Profit y el mensaje de decisión.
-    """
-    # Calcular la altura necesaria:
-    # 3 líneas fijas (título, header y separador) + 1 línea por cada posición + 1 extra para el borde inferior.
     needed_height = 3 + len(positions_list) + 1
-
     try:
         panel.resize(needed_height, width)
-    except Exception as e:
-        # Si falla el resize, se continúa con el panel actual
+    except Exception:
         pass
 
     panel.erase()
@@ -226,36 +200,28 @@ def draw_decisions_table(panel, positions_list, width, mode):
     
     row = 3
     for pos in positions_list:
-        # Extraemos el dealId desde la subclave "position"
-        deal_id_full = pos.get("position", {}).get("dealId", "N/A")
-        deal_id = deal_id_full[-4:] if deal_id_full != "N/A" else "N/A"
-        
-        # Extraemos el mensaje de decisión
+        # Para la visualización se muestra el dealId truncado, pero en la lista se debe tener el dealId completo
+        full_deal_id = pos.get("position", {}).get("dealId", "N/A")
+        deal_id_trunc = full_deal_id[-4:] if full_deal_id != "N/A" else "N/A"
         mensaje = pos.get("reason", "")
-        # Obtenemos el max_profit actualizado en evaluate_positions; si no existe, se muestra 0.0
         max_profit = pos.get("max_profit", 0.0)
-        
-        # Ajustamos el ancho de cada campo
-        line = f"{deal_id:<12} │ {max_profit:>12.2f} │ {mensaje:<{width - 30}}"
+        line = f"{deal_id_trunc:<12} │ {max_profit:>12.2f} │ {mensaje:<{width - 30}}"
         safe_addstr(panel, row, 2, line)
         row += 1
 
     panel.refresh()
 
-
 def evaluate_positions(positions, features, profittracker, debug_callback=None):
     to_close = []
     now_time = datetime.now(timezone.utc)
     min_threshold = 0.03
-    closure_pct = 0.90  # Este valor se usaba para evaluar retrocesos en ganancias "normales"
+    closure_pct = 0.90
 
     for position in positions:
-        # Obtenemos el dealId completo desde la subclave "position"
-        deal_id_full = position.get("position", {}).get("dealId", "N/A")
-        deal_id_short = deal_id_full[-4:]  # Tomamos sólo los últimos 4 caracteres
-        deal_id = deal_id_short
-
-        # Obtenemos la fecha de creación desde "position"
+        # Obtener el dealId completo (sin truncar) para usar en la solicitud de cierre
+        full_deal_id = position.get("position", {}).get("dealId", "N/A")
+        # Para visualización se puede truncar, pero para el cierre se usará el full_deal_id
+        deal_id_trunc = full_deal_id[-4:] if full_deal_id != "N/A" else "N/A"
         created_str = position.get("position", {}).get("createdDateUTC") or position.get("position", {}).get("createdDate")
         hours_open = None
         if created_str:
@@ -269,74 +235,71 @@ def evaluate_positions(positions, features, profittracker, debug_callback=None):
                 hours_open = delta.total_seconds() / 3600
             except Exception:
                 hours_open = None
-
         position["hours_open"] = hours_open if hours_open is not None else "N/A"
         position["reason"] = ""
-        
         try:
             upl = float(position.get("position", {}).get("upl", 0))
         except Exception:
             upl = 0.0
-
         upl_percent = upl * 100.0
 
         if debug_callback:
-            debug_callback(f"DEBUG: Evaluando posición {deal_id} -> upl: {upl}")
+            debug_callback(f"DEBUG: Evaluando posición {deal_id_trunc} -> upl: {upl}")
 
-        # Si UPL es negativo, no se cierra la posición
         if upl < 0:
             position["reason"] += f"UPL negativo ({upl_percent:.2f}%). Sin acción."
             continue
 
-        # Actualizar o inicializar el max_profit para esta posición
-        if deal_id not in profittracker:
-            profittracker[deal_id] = {"max_profit": 0}
-        prev_max = profittracker[deal_id].get("max_profit", 0)
+        if full_deal_id not in profittracker:
+            profittracker[full_deal_id] = {"max_profit": 0}
+        prev_max = profittracker[full_deal_id].get("max_profit", 0)
 
         if upl > prev_max:
-            profittracker[deal_id]["max_profit"] = upl
+            profittracker[full_deal_id]["max_profit"] = upl
             position["max_profit"] = upl
             position["reason"] += f"Max Profit actualizado a {upl_percent:.2f}%. "
         else:
             position["max_profit"] = prev_max
             position["reason"] += f"Sin actualización en el Max Profit (permanece en {prev_max*100:.2f}%). "
 
-        # Nueva condición especial: si el max_profit supera el 30%,
-        # cualquier retroceso (upl menor que el max_profit) dispara el cierre inmediato.
-        if position["max_profit"] >= 0.30 and upl < position["max_profit"]:
+        if position["max_profit"] >= 0.10 and upl < position["max_profit"]:
             position["reason"] += f"Cerrar recomendado por alta ganancia: retracción de {position['max_profit']*100:.2f}% a {upl_percent:.2f}%."
             to_close.append({
                 "action": "Close",
-                "dealId": deal_id,
+                "dealId": full_deal_id,
                 "size": position.get("size"),
-                "reason": position["reason"]
+                "reason": position["reason"],
+                "direction": position.get("position", {}).get("direction", "N/A"),
+                "epic": position.get("market", {}).get("epic", "N/A")
             })
-        # Condición original para evaluar retrocesos en ganancias "normales"
         elif upl > min_threshold and upl < position["max_profit"] * closure_pct:
-            rsi  = features.get("RSI", 0)
+            rsi = features.get("RSI", 0)
             macd = features.get("MACD", 0)
-            vol  = features.get("VolumeChange", 0)
+            vol = features.get("VolumeChange", 0)
             if rsi > 50 and macd > 0 and vol > 0:
                 position["reason"] += f"Mantener recomendado (UPL: {upl_percent:.2f}%)."
             else:
                 position["reason"] += f"Cerrar recomendado (UPL: {upl_percent:.2f}% < 90% del max profit)."
                 to_close.append({
                     "action": "Close",
-                    "dealId": deal_id,
+                    "dealId": full_deal_id,
                     "size": position.get("size"),
-                    "reason": position["reason"]
+                    "reason": position["reason"],
+                    "direction": position.get("position", {}).get("direction", "N/A"),
+                    "epic": position.get("market", {}).get("epic", "N/A")
                 })
         else:
             position["reason"] += f"No es necesario cerrar (UPL: {upl_percent:.2f}% es adecuado). "
 
-        # Cierre forzado si la posición ha estado abierta 24h o más y tiene ganancia sustancial (>= 50%)
         if isinstance(hours_open, (int, float)) and hours_open >= 24 and upl >= 0.5:
             position["reason"] += f"Cierre forzado: Abierta {hours_open:.1f}h, UPL {upl_percent:.2f}%."
             to_close.append({
                 "action": "Close",
-                "dealId": deal_id,
+                "dealId": full_deal_id,
                 "size": position.get("size"),
-                "reason": position["reason"]
+                "reason": position["reason"],
+                "direction": position.get("position", {}).get("direction", "N/A"),
+                "epic": position.get("market", {}).get("epic", "N/A")
             })
 
     try:
@@ -350,8 +313,34 @@ def evaluate_positions(positions, features, profittracker, debug_callback=None):
 
     return to_close
 
+def close_position(action, cst, security_token):
+    """
+    Cierra una posición específica usando DELETE /api/v1/positions/{dealId}.
+    Se espera que 'action' contenga al menos:
+      - "dealId": identificador completo de la posición.
+    Los tokens (cst y security_token) se usan directamente.
+    """
+    deal_id = action.get("dealId")
+    try:
+        url = f"{BASE_URL.rstrip('/')}/api/v1/positions/{deal_id}"
+        headers = {
+            "Content-Type": "application/json",
+            "X-CAP-API-KEY": API_KEY,
+            "CST": cst,
+            "X-SECURITY-TOKEN": security_token,
+        }
+        response = requests.delete(url, headers=headers)
+        response.raise_for_status()
 
+        # Registrar posición cerrada exitosamente
+        log_closed_position(action)
 
+        return response.json() if response.text else {"message": "Posición cerrada sin contenido."}
+    except Exception as e:
+        print(f"[ERROR] Fallo al cerrar la posición {deal_id}: {e}")
+        return None
+
+# ------------------- Función principal con curses ------------------- #
 async def curses_main_async(stdscr, cst, security_token):
     curses.curs_set(0)
     stdscr.nodelay(True)
@@ -370,18 +359,15 @@ async def curses_main_async(stdscr, cst, security_token):
     positions_list = []
     previous_upl = {}
 
-    # Cargar profittracker de disco si existe
     try:
         with open("profittracker.json", "r") as file:
             profittracker = json.load(file)
     except (FileNotFoundError, json.JSONDecodeError):
         profittracker = {}
 
-    # Lista para almacenar mensajes de debug
     debug_messages = []
 
     while True:
-        # Calcular dimensiones y definir los paneles al inicio de cada iteración
         max_y, max_x = stdscr.getmaxyx()
         header_lines = 3
         debug_panel_height = min(30, max_y // 4)
@@ -393,13 +379,11 @@ async def curses_main_async(stdscr, cst, security_token):
         dec_panel = stdscr.subwin(dec_height, max_x - 2, header_lines + pos_height, 1)
         debug_panel = stdscr.subwin(debug_panel_height, max_x - 2, header_lines + pos_height + dec_height, 1)
 
-        # Capturar tecla
         try:
             key = stdscr.getch()
         except Exception:
             key = -1
 
-        # Manejo de teclas: q (salir), m (monitor), e (evaluador)
         if key != -1:
             if key == ord('q'):
                 break
@@ -410,76 +394,58 @@ async def curses_main_async(stdscr, cst, security_token):
             elif key == ord('e'):
                 mode = "evaluador"
                 evaluator_message = "Modo EVALUADOR: Evaluación activada"
-                # Limpiar mensajes 'reason' en cada posición
                 for pos in positions_list:
                     pos["reason"] = ""
                 log_debug_message(debug_panel, debug_messages, evaluator_message)
 
         now = time.time()
-        # Actualizar posiciones cada 'update_interval' segundos
         if now - last_update >= update_interval:
             try:
-                # Obtener datos de posiciones (bloqueante) usando asyncio.to_thread
                 data = await asyncio.to_thread(get_positions, cst, security_token)
                 positions_list = data.get("positions") or data.get("data") or []
-
-                # -----------------------------------------------------------------
-                # AÑADIR LÓGICA PARA CALCULAR HOURS_OPEN
-                # -----------------------------------------------------------------
                 for pos in positions_list:
-                    # Estructura típica: pos["position"] con "dealId", "createdDateUTC", etc.
                     pos_details = pos.get("position", {})
-                    
-                    # 1) Tomar la fecha de creación
                     created_str = pos_details.get("createdDateUTC") or pos_details.get("createdDate")
-                    
-                    # 2) Calcular horas abiertas
                     hours_open_value = 0.0
                     if created_str:
                         hours_open_value = get_hours_open(created_str)
-                    
-                    # 3) Asignar hours_open al mismo nivel que 'direction', 'size', etc.
                     pos["hours_open"] = hours_open_value
-
-                    # 4) Si deseas 'dealId' al nivel superior
                     pos["dealId"] = pos_details.get("dealId")
-                    # También podrías exponer direction, size, etc.:
                     pos["direction"] = pos_details.get("direction")
                     pos["size"] = pos_details.get("size")
                     pos["upl"] = pos_details.get("upl")
-                    # -----------------------------------------------------------------
-
                 last_update = now
-
             except Exception as e:
                 positions_list = []
                 log_debug_message(debug_panel, debug_messages, f"Error al obtener posiciones: {e}")
 
-            # Si estamos en modo "evaluador", procesar las posiciones
             if mode == "evaluador":
                 features = {"RSI": 55, "MACD": 1, "VolumeChange": 1}
                 actions = evaluate_positions(
-                    positions_list, 
-                    features, 
+                    positions_list,
+                    features,
                     profittracker,
                     lambda msg: log_debug_message(debug_panel, debug_messages, msg)
                 )
-                if actions:
-                    evaluator_message = f"Modo EVALUADOR: Evaluación activada | Acciones de cierre: {len(actions)}"
-                else:
-                    evaluator_message = "Modo EVALUADOR: Evaluación activada | Ninguna acción recomendada"
-                log_debug_message(debug_panel, debug_messages, evaluator_message)
-            else:
-                evaluator_message = "Modo MONITOR: Evaluación desactivada"
-                log_debug_message(debug_panel, debug_messages, evaluator_message)
 
-        # Dibujar tablas de posiciones y decisiones
+                if actions:
+                    evaluator_message = f"Modo EVALUADOR activado | Posiciones a cerrar: {len(actions)}"
+                    log_debug_message(debug_panel, debug_messages, evaluator_message)
+
+                    for action in actions:
+                        result = await asyncio.to_thread(close_position, action, cst, security_token)
+                        if result:
+                            log_closed_position(action)  # Registro exitoso del cierre
+                            log_debug_message(debug_panel, debug_messages, f"✅ Posición {action['dealId']} cerrada correctamente.")
+                        else:
+                            log_debug_message(debug_panel, debug_messages, f"[ERROR] Al cerrar posición {action['dealId']}")
+                else:
+                    evaluator_message = "Modo EVALUADOR activado | Ninguna posición cumple criterios para cierre."
+                    log_debug_message(debug_panel, debug_messages, evaluator_message)
+
         draw_positions_table(pos_panel, positions_list, mode, previous_upl)
         draw_decisions_table(dec_panel, positions_list, max_x - 2, mode)
-        
-        # Actualizar panel de debug sin agregar nuevos mensajes
         log_debug_message(debug_panel, debug_messages)
-
         stdscr.refresh()
         await asyncio.sleep(0.1)
 
