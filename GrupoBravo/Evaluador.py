@@ -17,6 +17,7 @@ def authenticate():
     response = requests.post(url, headers=headers, json=data)
     response.raise_for_status()
     return response.json(), response.headers
+
 def log_closed_position(details):
     try:
         with open("closed_positions.txt", "a", encoding="utf-8") as file:
@@ -104,7 +105,7 @@ def draw_positions_table(panel, positions_list, mode, previous_upl):
     safe_addstr(panel, 0, 2, header, curses.A_BOLD)
     
     columns = [
-        ("Instrumento", 20),
+        ("Instrumento", 15),
         ("Epic", 8),
         ("Dirección", 10),
         ("Tamaño", 6),
@@ -373,7 +374,9 @@ async def curses_main_async(stdscr, cst, security_token):
 
         pos_panel = stdscr.subwin(pos_height, max_x - 2, header_lines, 1)
         dec_panel = stdscr.subwin(dec_height, max_x - 2, header_lines + pos_height, 1)
+        # Se quita el "- 1" para que el debug log comience justo después de las decisiones
         debug_panel = stdscr.subwin(debug_panel_height, max_x - 2, header_lines + pos_height + dec_height, 1)
+
 
         try:
             key = stdscr.getch()
