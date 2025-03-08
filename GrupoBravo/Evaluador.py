@@ -17,6 +17,7 @@ def authenticate():
     response = requests.post(url, headers=headers, json=data)
     response.raise_for_status()
     return response.json(), response.headers
+
 def log_closed_position(details):
     try:
         with open("closed_positions.txt", "a", encoding="utf-8") as file:
@@ -104,7 +105,7 @@ def draw_positions_table(panel, positions_list, mode, previous_upl):
     safe_addstr(panel, 0, 2, header, curses.A_BOLD)
     
     columns = [
-        ("Instrumento", 20),
+        ("Instrumento", 15),
         ("Epic", 8),
         ("Dirección", 10),
         ("Tamaño", 6),
@@ -373,7 +374,9 @@ async def curses_main_async(stdscr, cst, security_token):
 
         pos_panel = stdscr.subwin(pos_height, max_x - 2, header_lines, 1)
         dec_panel = stdscr.subwin(dec_height, max_x - 2, header_lines + pos_height, 1)
+        # Se quita el "- 1" para que el debug log comience justo después de las decisiones
         debug_panel = stdscr.subwin(debug_panel_height, max_x - 2, header_lines + pos_height + dec_height, 1)
+
 
         try:
             key = stdscr.getch()
@@ -458,12 +461,12 @@ def main():
     cst = resp_headers.get("CST")
     security_token = resp_headers.get("X-SECURITY-TOKEN")
     current_account = auth_data.get("currentAccountId")
-    accounts = auth_data.get("accounts", [])
+    accounts = authadfasdf_data.get("accounts", [])
     print("Cuentas disponibles:")
     for idx, acc in enumerate(accounts, start=1):
         print(f"{idx}) {acc.get('accountName')}")
-    try:
-        choice = int(input("¿Qué cuenta quieres monitorear? (ingresa el número): "))
+    try:asdfasdfasdfa
+        choice = int(input(dfsdfasdfa"¿Qué cuenta quieres monitorear? (ingresa el número): "))
         if choice < 1 or choice > len(accounts):
             print("Opción no válida.")
             return
@@ -484,7 +487,7 @@ def main():
             print(f"Error al cambiar de cuenta: {e}")
             return
     else:
-        print("La cuenta actual ya es la seleccionada.")
+        print("La cuenta actual ya sdfsdfasdfasdfasdfasdfasdes la seleccionada.")
     
     curses.wrapper(curses_main, cst, security_token)
 
