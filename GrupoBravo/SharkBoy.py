@@ -217,60 +217,68 @@ class TradingOperator(QObject):
             if not account_info or "accounts" not in account_info:
                 print("[ERROR] Información de cuenta inválida.")
                 return 0, []
- 
+
             accounts = account_info.get("accounts", [])
             if not accounts:
                 print("[ERROR] No se encontraron cuentas.")
                 return 0, []
- 
-            account_data = accounts[0]
-            self.balance = account_data.get("balance", {}).get("available", 0)
-            print("[INFO] Balance actualizado:", self.balance)
- 
+
+            # Buscar la cuenta activa en función del account_id
+            active_account = next((acc for acc in accounts if acc["accountId"] == self.account_id), accounts[0])
+
+            # Extraer y almacenar el nombre de la cuenta
+            self.account_name = active_account.get("accountName", "Desconocida")
+            self.capital_ops.account_name = self.account_name  # Guardar en capital_ops para referencia global
+
+            # Extraer y almacenar el balance disponible
+            self.balance = active_account.get("balance", {}).get("available", 0)
+            print(f"[INFO] Balance actualizado: {self.balance} | Cuenta activa: {self.account_name}")
+
+            # Obtener posiciones abiertas
             positions = self.capital_ops.get_open_positions()
             print("[DEBUG] Contenido de 'positions':", positions)
- 
+
             if isinstance(positions, tuple):  
                 positions = positions[1]
- 
+
             if not isinstance(positions, list):
                 print("[ERROR] Formato inesperado en posiciones abiertas. Contenido recibido:", positions)
                 return self.balance, []
- 
+
             return self.balance, positions
- 
+
         except Exception as e:
             print(f"[ERROR] Error al actualizar saldo y posiciones: {e}")
             return 0, []
- 
+
     def get_latest_data(self, data_frame):
         if data_frame.empty:
             raise ValueError("[ERROR] Los datos están vacíos.")
         print("[INFO] Última fila cargada:", data_frame.iloc[-1].to_dict())
         return data_frame.iloc[-1]
- 
+
     def process_open_positions(self, account_id, capital_ops, current_price, features):
         try:
             print("[DEBUG] Procesando posiciones abiertas (BUY y SELL).")
- 
+
             buy_positions, sell_positions = capital_ops.get_open_positions()
             all_positions = buy_positions + sell_positions  # ✅ Ahora manejamos ambas
             print(f"[INFO] Procesando {len(all_positions)} posiciones abiertas.")
- 
+
             formatted_positions = []
             now_time = datetime.now(timezone.utc)
- 
+
             for position in all_positions:
                 position_data = position.get("position", {})
                 market_data = position.get("market", {})
- 
+
                 required_keys = ["level", "direction", "size", "createdDateUTC"]
                 if any(key not in position_data or position_data[key] is None for key in required_keys):
                     print(f"[ERROR] Posición incompleta: {position_data}")
                     continue
- 
+
                 deal_id = position_data.get("dealId") or f"temp_{id(position)}"
- 
+
                 # 📌 Calcular horas abiertas
                 try:
                     created_date_str = position_data.get("createdDateUTC")
@@ -283,9 +291,9 @@ class TradingOperator(QObject):
                 except Exception as e:
                     print(f"[ERROR] No se pudo calcular horas abiertas de {deal_id}: {e}")
                     hours_open = "N/A"
- 
+
                 prev_max_profit = self.position_tracker.get(deal_id, {}).get("max_profit", 0)
- 
+
                 fpos = {
                     "price": position_data["level"],
                     "direction": position_data["direction"],
@@ -300,14 +308,14 @@ class TradingOperator(QObject):
                 }
                 formatted_positions.append(fpos)
                 print(f"[DEBUG] Posición formateada: {fpos}")
- 
+
             # ✅ Evaluar posiciones abiertas con la estrategia (actualiza cada posición con su 'reason')
             to_close = self.strategy.evaluate_positions(
                 positions=formatted_positions,
                 current_price=current_price,
                 features=features
             )
- 
+
             # ✅ Cerrar posiciones si es necesario
             for action in to_close:
                 if action["action"] == "Close":
@@ -318,13 +326,13 @@ class TradingOperator(QObject):
                         self.position_tracker.pop(deal_id, None)
                     else:
                         print("[ERROR] dealId no proporcionado para cerrar posición.")
- 
+
             # ✅ Actualizar el seguimiento de ganancias y pérdidas
             for fpos in formatted_positions:
                 d_id = fpos["dealId"]
                 direction = fpos["direction"].upper()
                 entry_price = fpos["price"]
- 
+
                 if direction == "BUY":
                     current_profit = (current_price - entry_price) / entry_price
                 elif direction == "SELL":
@@ -332,12 +340,12 @@ class TradingOperator(QObject):
                 else:
                     print(f"[WARNING] Dirección desconocida: {direction}.")
                     continue
- 
+
                 self.position_tracker[d_id] = {
                     "max_profit": max(self.position_tracker.get(d_id, {}).get("max_profit", 0), current_profit)
                 }
                 fpos["max_profit"] = self.position_tracker[d_id]["max_profit"]
- 
+
             # ✅ Construir el log de la evaluación
             # Aquí se recopilan las razones de cada posición evaluada
             evaluation_reasons = []
@@ -347,7 +355,7 @@ class TradingOperator(QObject):
                     "reason": fpos.get("reason", ""),
                     "max_profit": fpos.get("max_profit", None)
                 })
- 
+
             log_entry = {
                 "datetime": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "current_price": current_price,
@@ -357,12 +365,12 @@ class TradingOperator(QObject):
                 "features": {key: features[key] for key in ["Close", "RSI", "ATR", "VolumeChange"] if key in features},
             }
             self.log_open_positions.append(log_entry)
- 
+
             print(f"[DEBUG] Log desde process_open_positions: {log_entry}")
             print(f"[INFO] Evaluación completada. Acciones: {to_close}")
- 
+
             self.save_position_tracker()
- 
+
         except Exception as e:
             print(f"[ERROR] Fallo en process_open_positions: {e}")
  
@@ -557,6 +565,7 @@ class TradingOperator(QObject):
  
                 # Panel izquierdo: Información General sin incluir la Razón
                 info_text = textwrap.dedent(f"""
+                    [bold cyan]🏦 Cuenta Activa:[/bold cyan] {self.account_name}
                     [bold green]📉 Precio actual:[/bold green] {entry.get('current_price', 'N/A'):.2f}
                     [bold green]💰 Balance disponible:[/bold green] {entry.get('balance', 'N/A'):.2f}
                     [bold red]🔥 Decisión tomada:[/bold red] {entry.get('decision', 'N/A')}
