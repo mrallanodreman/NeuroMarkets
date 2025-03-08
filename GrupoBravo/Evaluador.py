@@ -461,12 +461,12 @@ def main():
     cst = resp_headers.get("CST")
     security_token = resp_headers.get("X-SECURITY-TOKEN")
     current_account = auth_data.get("currentAccountId")
-    accounts = authadfasdf_data.get("accounts", [])
+    accounts = auth_data.get("accounts", [])
     print("Cuentas disponibles:")
     for idx, acc in enumerate(accounts, start=1):
         print(f"{idx}) {acc.get('accountName')}")
-    try:asdfasdfasdfa
-        choice = int(input(dfsdfasdfa"¿Qué cuenta quieres monitorear? (ingresa el número): "))
+    try:
+        choice = int(input("¿Qué cuenta quieres monitorear? (ingresa el número): "))
         if choice < 1 or choice > len(accounts):
             print("Opción no válida.")
             return
@@ -487,7 +487,7 @@ def main():
             print(f"Error al cambiar de cuenta: {e}")
             return
     else:
-        print("La cuenta actual ya sdfsdfasdfasdfasdfasdfasdes la seleccionada.")
+        print("La cuenta actual ya es la seleccionada.")
     
     curses.wrapper(curses_main, cst, security_token)
 
