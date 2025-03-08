@@ -4,14 +4,11 @@ import time
 import requests
 import json
 from datetime import datetime, timezone
+from EthConfig import BASE_URL, API_KEY, LOGIN, PASSWORD
 
 # ------------------- Configuración de la API ------------------- #
-BASE_URL = "https://demo-api-capital.backend-capital.com/"
 SESSION_ENDPOINT = "/api/v1/session"
 POSITIONS_ENDPOINT = "/api/v1/positions"
-API_KEY = "dshUTxIDbHEtaOJS"
-LOGIN = "odremanallanr@gmail.com"
-PASSWORD = "Millo2025."
 
 def authenticate():
     url = BASE_URL + SESSION_ENDPOINT
@@ -20,7 +17,6 @@ def authenticate():
     response = requests.post(url, headers=headers, json=data)
     response.raise_for_status()
     return response.json(), response.headers
-
 def log_closed_position(details):
     try:
         with open("closed_positions.txt", "a", encoding="utf-8") as file:
