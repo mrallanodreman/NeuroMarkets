@@ -1,332 +1,281 @@
-import requests
-import json
+
+from rich.console import Console
+from rich.prompt import Prompt
+from rich.table import Table
+from rich.panel import Panel
+from rich import box
 from datetime import datetime
+import base64
+import re
+import subprocess
+import atexit
+import os
 import time
-from EthConfig import BASE_URL, API_KEY, LOGIN, PASSWORD
-from colorama import Fore, Style
+import importlib
 
-class CapitalOP:
-    def __init__(self):
+# ========================
+# Variables de configuración globales
+# ========================
+# Si alguna de estas variables se deja en None, el script solicitará la configuración.
+BASE_URL = "https://demo-api-capital.backend-capital.com/"
+SESSION_ENDPOINT = "/api/v1/session"
+MARKET_SEARCH_ENDPOINT = "/api/v1/markets"
+API_KEY = "dshUTxIDbHEtaOJS" 
+LOGIN = "odremanallanr@gmail.com"
+PASSWORD = "Millo2025."
+DATA_DIR = "Reports"  # Directorio donde se guardarán los archivos JSON
+OPERATION_MODE = "demo"  # Puede ser "demo" o "real"
 
-        self.base_url = BASE_URL
-        self.api_key = API_KEY
-        self.login = LOGIN
-        self.password = PASSWORD
-        self.session_token = None
-        self.x_security_token = None
-        self.account_id = None  # Atributo para almacenar el account_id actual
-        # 🔹 Límites de posiciones para cada bot
-        self.max_buy_positions = 1   # Límite para EthOperator
-        self.max_sell_positions = 4  # Límite para SharkBoy
+ENCODED_KEY = "Y2xhdmVj" 
+KEY = base64.b64decode(ENCODED_KEY).decode('utf-8')
 
-    def set_account_id(self, account_id):
-        """Configura el account_id que se utilizará en las consultas."""
-        self.account_id = account_id
-        print(f"[INFO] Account ID configurado: {self.account_id}")
+# Lista encriptada de usuarios autorizados 
+WHITELIST_ENCRYPTED = "2d0515040a0c101f5742 0b0303130417 000414150d0a"
 
+def xor_encrypt(text, key=KEY):
+    result = []
+    for i, ch in enumerate(text):
+        result.append(chr(ord(ch) ^ ord(key[i % len(key)])))
+    return ''.join(f"{ord(c):02x}" for c in result)
 
-    def authenticate(self):
-        """Autentica con la API de Capital y obtiene los datos necesarios."""
-        try:
-            session_url = f"{self.base_url}/api/v1/session"
-            payload = {
-                "identifier": self.login,
-                "password": self.password,
-                "encryptedPassword": False
-            }
-            headers = {
-                "Content-Type": "application/json",
-                "X-CAP-API-KEY": self.api_key
-            }
-
-            print("[DEBUG] Enviando solicitud de autenticación...")
-            response = requests.post(session_url, json=payload, headers=headers)
-
-            if response.status_code == 200:
-                session_data = response.json()
-                print(f"[DEBUG] Respuesta completa:\n{json.dumps(session_data, indent=4)}")
-
-                # Obtener tokens de los encabezados
-                self.session_token = response.headers.get("CST")
-                self.x_security_token = response.headers.get("X-SECURITY-TOKEN")
-
-                if not self.session_token or not self.x_security_token:
-                    print("[ERROR] Tokens no obtenidos durante la autenticación.")
-                    return
-
-                print("[INFO] Autenticación exitosa.")
-            else:
-                print(f"[ERROR] Error al autenticar: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"[ERROR] Fallo en la autenticación: {e}")
-
-    def ensure_authenticated(self):
-        """Valida que la autenticación sea válida antes de realizar operaciones."""
-        if not self.session_token or not self.x_security_token:
-            print("[INFO] Autenticación inválida. Reautenticando...")
-            self.authenticate()
-        else:
-            print("[INFO] Autenticación válida. No se necesita reautenticación.")
-
-    def get_account_summary(self):
-        """Obtiene un resumen de la cuenta, incluido el saldo disponible."""
-        try:
-            self.ensure_authenticated()
-
-            account_url = f"{self.base_url}/api/v1/accounts"
-            headers = {
-                "Content-Type": "application/json",
-                "X-CAP-API-KEY": self.api_key,
-                "CST": self.session_token,
-                "X-SECURITY-TOKEN": self.x_security_token
-            }
-
-            response = requests.get(account_url, headers=headers)
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 401:  # Código para "Unauthorized"
-                print("[INFO] Token inválido o expirado. Renovando...")
-                self.authenticate()
-                return self.get_account_summary()
-            else:
-                print(f"[ERROR] Error al obtener resumen de cuenta: {response.text}")
-                return {}
-        except Exception as e:
-            print(f"[ERROR] Fallo al obtener resumen de cuenta: {e}")
-            return {}
-
-    def get_open_positions(self):
-        """Obtiene las posiciones abiertas para la cuenta activa."""
-        try:
-            self.ensure_authenticated()
-
-            # Endpoint para obtener posiciones abiertas
-            positions_url = f"{self.base_url}/api/v1/positions"
-            headers = {
-                "Content-Type": "application/json",
-                "X-CAP-API-KEY": self.api_key,
-                "CST": self.session_token,
-                "X-SECURITY-TOKEN": self.x_security_token
-            }
-
-            print(f"[DEBUG] Solicitando posiciones abiertas para la cuenta activa.")
-            response = requests.get(positions_url, headers=headers)
-
-            print("[DEBUG] URL de consulta:", response.url)
-            print("[DEBUG] Respuesta completa:", response.text)
-
-            if response.status_code == 200:
-                data = response.json()
-                positions = data.get("positions", [])
-
-                # Separar posiciones por tipo de operación
-                buy_positions = [pos for pos in positions if pos["position"]["direction"] == "BUY"]
-                sell_positions = [pos for pos in positions if pos["position"]["direction"] == "SELL"]
-
-                print(f"[INFO] Posiciones abiertas - BUY: {len(buy_positions)}, SELL: {len(sell_positions)}")
-                return buy_positions, sell_positions  # ✅ Ahora sí retorna correctamente
-
-            print(f"[ERROR] Error al obtener posiciones abiertas: {response.status_code} - {response.text}")
-            return [], []  # ✅ Manejo de error
-
-        except Exception as e:
-            print(f"[ERROR] Fallo al obtener posiciones abiertas: {e}")
-            return [], []
-
-    def close_position(self, deal_id):
-        """Cierra una posición específica por dealId."""
-        try:
-            self.ensure_authenticated()
-
-            close_url = f"{self.base_url}/api/v1/positions/{deal_id}"
-            headers = {
-                "Content-Type": "application/json",
-                "X-CAP-API-KEY": self.api_key,
-                "CST": self.session_token,
-                "X-SECURITY-TOKEN": self.x_security_token
-            }
-
-            response = requests.delete(close_url, headers=headers)
-            if response.status_code == 200:
-                print(f"[INFO] Posición cerrada exitosamente. dealId: {deal_id}")
-                return response.json()  # Podrías retornar el JSON resultante
-            else:
-                print(f"[ERROR] Error al cerrar la posición {deal_id}: {response.status_code} - {response.text}")
-                return None
-        except Exception as e:
-            print(f"[ERROR] Fallo al cerrar la posición {deal_id}: {e}")
-            return None
-
-    def open_position(self, market_id, direction, size, level=None, stop_loss=None, take_profit=None):
-        """
-        Opens a new position in the specified market and confirms the position.
-
-        :param market_id: The market ID (e.g., "BTC-USD").
-        :param direction: "BUY" or "SELL".
-        :param size: Position size.
-        :param level: Price level for the order (optional).
-        :param stop_loss: Stop loss price level (optional).
-        :param take_profit: Take profit price level (optional).
-        :return: API response as JSON or error details.
-        """
-        try:
-            self.ensure_authenticated()
-
-             # Obtener posiciones abiertas actuales
-            buy_positions, sell_positions = self.get_open_positions()
-        
-            if direction.upper() == "SELL" and len(sell_positions) >= self.max_sell_positions:
-                print(f"[WARNING] Límite de posiciones SELL alcanzado ({self.max_sell_positions}). No se abrirá una nueva posición.")
-                return None
-
-            open_url = f"{self.base_url}/api/v1/positions"
-            headers = {
-                "Content-Type": "application/json",
-                "X-CAP-API-KEY": self.api_key,
-                "CST": self.session_token,
-                "X-SECURITY-TOKEN": self.x_security_token
-            }
-
-            # Build the payload dynamically
-            payload = {
-                "epic": market_id,  # Cambiar la clave de "marketId" a "epic"
-                "direction": direction.upper(),  # Ensure capitalization for API compatibility
-                "size": size,
-                "type": "MARKET",  # Assuming "MARKET" type for real-time execution
-            }
-
-            if stop_loss is not None:
-                payload["stopLevel"] = stop_loss
-            if take_profit is not None:
-                payload["limitLevel"] = take_profit
-            if level is not None:
-                payload["level"] = level
-
-            print("[INFO] Enviando solicitud para abrir posición...")
-            # Open position
-            response = requests.post(open_url, json=payload, headers=headers)
-            if response.status_code == 200:
-                position_data = response.json()
-                deal_reference = position_data.get("dealReference")
-                print(f"[INFO] Posición abierta exitosamente: {position_data}")
-                
-                if deal_reference:
-                    print("[INFO] Confirmando posición...")
-                    # Confirm position
-                    confirm_url = f"{self.base_url}/api/v1/confirms/{deal_reference}"
-                    confirm_response = requests.get(confirm_url, headers=headers)
-                    if confirm_response.status_code == 200:
-                        confirmation = confirm_response.json()
-                        print(f"[INFO] Confirmación de posición exitosa: {confirmation}")
-                        return confirmation
-                    else:
-                        print(f"[ERROR] Fallo en la confirmación de la posición: {confirm_response.status_code} - {confirm_response.text}")
-                        return {
-                            "error": True,
-                            "status_code": confirm_response.status_code,
-                            "message": confirm_response.text
-                        }
-                else:
-                    print("[ERROR] El dealReference no fue proporcionado en la respuesta.")
-                    return {
-                        "error": True,
-                        "message": "El dealReference no está presente en la respuesta."
-                    }
-            else:
-                print(f"[ERROR] Fallo al abrir posición: {response.status_code} - {response.text}")
-                return {
-                    "error": True,
-                    "status_code": response.status_code,
-                    "message": response.text
-                }
-        except Exception as e:
-            print(f"[ERROR] Error en open_position: {e}")
-            return {
-                "error": True,
-                "message": str(e)
-            }
-
-    def print_account_details(self):
-        """Imprime un resumen detallado de la cuenta, incluyendo el saldo y las operaciones abiertas con formato mejorado."""
-        try:
-            if not self.account_id:
-                raise ValueError("[ERROR] No se ha configurado el account_id.")
-
-            account_summary = self.get_account_summary()
-            buy_positions, sell_positions = self.get_open_positions()  # ⚠️ Desempaquetar correctamente
-
-            print("\n[INFO] Resumen de la Cuenta:")
-            if account_summary and isinstance(account_summary, dict):
-                for account in account_summary.get("accounts", []):
-                    print(f"  - Account ID: {account['accountId']}")
-                    print(f"    Nombre: {account['accountName']}")
-                    print(f"    Saldo: {account['balance']['balance']} {account['currency']}")
-                    print(f"    Disponible: {account['balance']['available']}\n")
-
-            print(f"\n[INFO] Posiciones Abiertas para la cuenta: {self.account_id}")
-
-            all_positions = buy_positions + sell_positions
-            if all_positions:
-                for index, pos in enumerate(all_positions, start=1):
-                    position_details = pos.get("position", {})
-                    market_details = pos.get("market", {})
-
-                    # 🏷️ Datos básicos
-                    instrument_name = market_details.get('instrumentName', 'N/A')
-                    direction = position_details.get('direction', 'N/A')
-                    size = position_details.get('size', 'N/A')
-                    price = position_details.get('level', 'N/A')
-                    profit_loss = position_details.get('upl', 0)
-                    currency = position_details.get('currency', 'N/A')
-
-                    # 📊 Determinar color de ganancia/pérdida
-                    profit_color = Fore.GREEN if profit_loss >= 0 else Fore.RED
-                    direction_emoji = "📈" if direction == "BUY" else "📉"
-                    position_number = f"{index}\ufe0f️⃣"  # Número con emoji (1️⃣, 2️⃣, 3️⃣...)
-
-                    # 🏳️ Separador con fondo blanco
-                    print(f"\n{Style.BRIGHT}{Fore.BLACK}{"=" * 40}{Style.RESET_ALL}")
-
-                    # 📝 Imprimir datos de la posición
-                    print(f"{position_number} - 🎯 Instrumento: {instrument_name}")
-                    print(f"    Dirección: {direction_emoji} {direction}")
-                    print(f"    Tamaño: {size}")
-                    print(f"    Precio de apertura: {price}")
-                    print(f"    Ganancia/Pérdida: {profit_color}{profit_loss} {currency}{Style.RESET_ALL}")
-
-                # 🎭 Fin de la impresión
-                print(f"\n{Style.BRIGHT}{Fore.BLACK}{"=" * 40}{Style.RESET_ALL}")
-
-            else:
-                print("  No hay posiciones abiertas.")
-        except Exception as e:
-            print(f"{Fore.RED}[ERROR] Fallo al imprimir detalles de la cuenta: {e}{Style.RESET_ALL}")
+def update_account_id_in_file(filename, new_account_id):
+    """
+    Busca en el archivo 'filename' la asignación de account_id y reemplaza
+    únicamente el valor entre comillas por 'new_account_id', manteniendo intacto
+    el resto de la línea (incluyendo comentarios).
+    """
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+        updated_content = re.sub(
+            r'(self\.account_id\s*=\s*")[^"]+(".*)',
+            lambda m: m.group(1) + new_account_id + m.group(2),
+            content
+        )
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(updated_content)
+        print(f"[INFO] {filename} actualizado con el nuevo account id: {new_account_id}.")
+    except Exception as e:
+        print(f"[ERROR] No se pudo actualizar {filename}: {e}")
 
 
+def update_config_file(filename, config_updates):
+    """
+    Actualiza las variables de configuración en el archivo 'filename' de acuerdo
+    a los valores proporcionados en el diccionario config_updates.
+    Si la variable no existe, se agrega al inicio del archivo.
+    """
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            content = f.read()
+        for var, new_val in config_updates.items():
+            new_val_str = str(new_val)
+            # Este patrón busca líneas del tipo: VARIABLE = "valor" o VARIABLE = None (manteniendo comentarios)
+            pattern = re.compile(r'^(\s*' + re.escape(var) + r'\s*=\s*)(?:"[^"]*"|None)(.*)$', re.MULTILINE)
+            replacement = r'\1"' + new_val_str + r'"\2'
+            content, count = pattern.subn(replacement, content)
+            if count == 0:
+                # Si la variable no se encontró, se agrega al principio del archivo
+                content = f'{var} = "{new_val_str}"\n' + content
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"[INFO] Archivo de configuración {filename} actualizado.")
+    except Exception as e:
+        print(f"[ERROR] No se pudo actualizar el archivo de configuración {filename}: {e}")
+
+def prompt_and_update_credentials(console):
+    global BASE_URL, API_KEY, LOGIN, PASSWORD, OPERATION_MODE
+
+    console.print("[bold cyan]No se han proporcionado credenciales completas en la configuración.[/bold cyan]")
+    
+    # Primero se piden las credenciales básicas:
+    new_api_key = Prompt.ask("Ingrese TU  API KEY de Capital.com ")
+    new_login = Prompt.ask("Ingrese su correo", default=LOGIN if LOGIN else "usuario@ejemplo.com")
+    new_password = Prompt.ask("Ingrese su clave al momento de crear tu clave api  ", default=PASSWORD if PASSWORD else "", password=True)
+    
+    # Mostrar un Panel enriquecido con las opciones para el modo de operación:
+    panel_text = "[green]1)[/green] Demo\n[blue]2)[/blue] Real"
+    panel = Panel(panel_text, title="[bold cyan]Seleccione el modo de operación[/bold cyan]", expand=False)
+    console.print(panel)
+    
+    # Luego se pide al usuario que ingrese la opción:
+    mode_choice = Prompt.ask("Ingrese 1 o 2")
+    
+    if mode_choice == "1":
+        mode = "demo"
+        new_api_url = "https://demo-api-capital.backend-capital.com/"
+    else:
+        mode = "real"
+        new_api_url = "https://api-capital.backend-capital.com/"
+    
+    console.print(f"\n[bold green]Modo seleccionado: {mode.upper()}[/bold green]")
+    console.print(f"[bold green]URL base configurada automáticamente: [underline]{new_api_url}[/underline][/bold green]\n")
+    
+    # Actualizar variables globales
+    BASE_URL = new_api_url
+    API_KEY = new_api_key
+    LOGIN = new_login
+    PASSWORD = new_password
+    OPERATION_MODE = mode.lower()
+    
+    # Actualizar el archivo de configuración con los nuevos valores
+    config_updates = {
+         "BASE_URL": BASE_URL,
+         "API_KEY": API_KEY,
+         "LOGIN": LOGIN,
+         "PASSWORD": PASSWORD,
+         "OPERATION_MODE": OPERATION_MODE,
+    }
+    update_config_file(__file__, config_updates)
+    console.print("[bold green]Credenciales y configuración actualizadas correctamente.[/bold green]")
+
+def show_config_summary(console, username, selected_account):
+    summary_table = Table(title="Resumen de Autoconfiguración", box=box.DOUBLE_EDGE)
+    summary_table.add_column("Parámetro", style="cyan", no_wrap=True)
+    summary_table.add_column("Valor", style="magenta")
+    summary_table.add_row("Usuario", username)
+    summary_table.add_row("Cuenta", selected_account.get("accountName", "N/A"))
+    summary_table.add_row("Account ID", selected_account.get("accountId", "N/A"))
+    summary_table.add_row("Fecha", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    summary_table.add_row("Modo", OPERATION_MODE)
+    console.print(summary_table)
+    console.print(Panel.fit("[bold green]¡La configuración se realizó con éxito![/bold green]\n[italic]Esto es arte, weón...[/italic]", border_style="green"))
+
+def change_account_type(console):
+    global BASE_URL, OPERATION_MODE
+    panel_text = "[green]1)[/green] Demo\n[blue]2)[/blue] Real"
+    panel = Panel(panel_text, title="[bold cyan]Seleccione el nuevo tipo de cuenta[/bold cyan]", expand=False)
+    console.print(panel)
+    mode_choice = Prompt.ask("Ingrese Opcion 1 para Demo / Opcion  2 Para real ",)
+    if mode_choice == "1":
+        new_api_url = "https://demo-api-capital.backend-capital.com/"
+        mode = "demo"
+    else:
+        new_api_url = "https://api-capital.backend-capital.com/"
+        mode = "real"
+    console.print(f"\n[bold green]Nuevo modo seleccionado: {mode.upper()}[/bold green]")
+    console.print(f"[bold green]Nueva URL base configurada: [underline]{new_api_url}[/underline][/bold green]\n")
+    BASE_URL = new_api_url
+    OPERATION_MODE = mode.lower()
+    # Actualizamos solo BASE_URL y OPERATION_MODE en el archivo de configuración
+    config_updates = {
+         "BASE_URL": BASE_URL,
+         "OPERATION_MODE": OPERATION_MODE,
+    }
+    update_config_file(__file__, config_updates)
 
 
+def main():
+    # Lanzar cmatrix en background (opcional)
+    try:
+        cmatrix_process = subprocess.Popen(
+            ["cmatrix", "-b"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        atexit.register(lambda: cmatrix_process.terminate())
+    except Exception as e:
+        print(f"[WARNING] No se pudo iniciar cmatrix: {e}")
+    
+    time.sleep(2)
+    os.system("clear")
+    
+    console = Console()
+    console.print("[bold green]=== Bienvenido al Autoconfigurador del Bot ===[/bold green]\n")
+    
+    if not all([BASE_URL, API_KEY, LOGIN, PASSWORD]):
+        prompt_and_update_credentials(console)
+        import EthSession
+        importlib.reload(EthSession)
+    
+    username = Prompt.ask("[bold cyan]Ingrese su nombre de usuario[/bold cyan]")
+    encrypted_username = xor_encrypt(username, KEY)
+    allowed_users = WHITELIST_ENCRYPTED.split()
+    
+    if encrypted_username not in allowed_users:
+        console.print("[bold red]Usuario no autorizado. Acceso denegado.[/bold red]")
+        return
+    console.print("[bold green]Usuario autorizado. Iniciando proceso de configuración...[/bold green]\n")
+    
+    from EthSession import CapitalOP
+    capital_ops = CapitalOP()
+    console.print("[bold cyan]Autenticando con la API...[/bold cyan]")
+    capital_ops.ensure_authenticated()
+    
+    console.print("\n[bold cyan]Obteniendo cuentas disponibles...[/bold cyan]")
+    account_summary = capital_ops.get_account_summary()
+    accounts = account_summary.get("accounts", [])
+    if not accounts:
+        console.print("[bold red]No se encontraron cuentas disponibles.[/bold red]")
+        return
 
+    # Menú extra para decidir si cambiar la configuración
+    console.print("\n[bold cyan]Configuración actual detectada.[/bold cyan]")
+    console.print("   [bold yellow]1)[/bold yellow] Cambiar cuenta de trading (dentro de la misma configuración)")
+    console.print("   [bold yellow]2)[/bold yellow] Cambiar tipo de cuenta (de real a demo o viceversa)")
+    console.print("   [bold yellow]3)[/bold yellow] Ver la configuración actual")
+    change_option = Prompt.ask("[bold red]Ingrese 1, 2 o 3 según lo que necesites hacer[/bold red]")
+    
+    if change_option == "2":
+        change_account_type(console)
+        import EthSession
+        importlib.reload(EthSession)
+        # Reobtener resumen de cuenta con la nueva configuración
+        account_summary = capital_ops.get_account_summary()
+        accounts = account_summary.get("accounts", [])
+        if not accounts:
+            console.print("[bold red]No se encontraron cuentas disponibles tras la reconfiguración.[/bold red]")
+            return
+    # Para opción 1 o 3 se conserva la configuración actual
+    
+    # Mostrar un resumen enriquecido para cada cuenta disponible
+    console.print("\n[bold cyan]Resumen de cada cuenta disponible:[/bold cyan]\n")
+    for account in accounts:
+        balance_info = account.get("balance", {})
+        summary_table = Table(
+            title=f"Resumen de Cuenta: {account.get('accountName', 'N/A')}",
+            box=box.SIMPLE_HEAVY
+        )
+        summary_table.add_column("Parámetro", style="cyan", no_wrap=True)
+        summary_table.add_column("Valor", style="magenta")
+        summary_table.add_row("Account ID", account.get("accountId", "N/A"))
+        summary_table.add_row("Nombre", account.get("accountName", "N/A"))
+        summary_table.add_row("Balance", str(balance_info.get("balance", "N/A")))
+        summary_table.add_row("Deposit", str(balance_info.get("deposit", "N/A")))
+        summary_table.add_row("Profit/Loss", str(balance_info.get("profitLoss", "N/A")))
+        summary_table.add_row("Disponible", str(balance_info.get("available", "N/A")))
+        console.print(summary_table)
+        console.print()
+    
+    # Mostrar una tabla para la selección
+    selection_table = Table(title="Cuentas Disponibles", box=box.ROUNDED)
+    selection_table.add_column("Índice", justify="right", style="cyan", no_wrap=True)
+    selection_table.add_column("Account ID", style="magenta")
+    selection_table.add_column("Nombre", style="green")
+    for i, account in enumerate(accounts, start=1):
+        selection_table.add_row(str(i), account.get("accountId", "N/A"), account.get("accountName", "N/A"))
+    console.print(selection_table)
+    
+    index_str = Prompt.ask("\n[bold cyan]Ingrese el número de la cuenta que desea utilizar[/bold cyan]")
+    try:
+        index = int(index_str) - 1
+        if index < 0 or index >= len(accounts):
+            console.print("[bold red]Índice fuera de rango. Saliendo.[/bold red]")
+            return
+        selected_account = accounts[index]
+    except Exception as e:
+        console.print(f"[bold red]Error al seleccionar la cuenta: {e}[/bold red]")
+        return
+    new_account_id = selected_account.get("accountId")
+    capital_ops.set_account_id(new_account_id)
+    
+    console.print(f"\n[bold green]Cuenta seleccionada: {selected_account.get('accountName')} (ID: {new_account_id})[/bold green]")
+    console.print("[bold green]Autoconfiguración completada. El bot está listo para operar.[/bold green]\n")
+    
+    update_account_id_in_file("SharkBoy.py", new_account_id)
+    
+    show_config_summary(console, username, selected_account)
 
 
 if __name__ == "__main__":
-    try:
-        capital_ops = CapitalOP()
-        # Autenticación inicial
-        capital_ops.ensure_authenticated()
-        
-        # Verificamos que el account_id ya haya sido configurado dinámicamente.
-        if not capital_ops.account_id:
-            print("[ERROR] No se ha configurado el account_id. Por favor, ejecute EthConfig para configurar el bot.")
-            exit(1)
-        
-        print("[INFO] El programa está corriendo. Presiona Ctrl+C para detenerlo.")
-        while True:
-            try:
-                # Obtener detalles de la cuenta específica
-                capital_ops.print_account_details()
-                time.sleep(60)
-            except Exception as e:
-                print(f"[ERROR] Error en el ciclo principal: {e}")
-                time.sleep(5)
-    except KeyboardInterrupt:
-        print("\n[INFO] Interrupción manual detectada. Programa finalizado.")
+    main()
