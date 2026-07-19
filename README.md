@@ -4,16 +4,42 @@
 
 ![Python](https://img.shields.io/badge/Python-111827?style=for-the-badge&logo=python&logoColor=white)
 ![Capital.com](https://img.shields.io/badge/Capital.com-111827?style=for-the-badge&logo=databricks&logoColor=white)
-![Trading Toolkit](https://img.shields.io/badge/Trading_Toolkit-111827?style=for-the-badge&logo=github&logoColor=white)
+![Trading Systems](https://img.shields.io/badge/Trading_Systems-111827?style=for-the-badge&logo=github&logoColor=white)
 ![Research Workspace](https://img.shields.io/badge/Research_Workspace-111827?style=for-the-badge&logo=openai&logoColor=74AA9C)
 
 </div>
 
 ---
 
-NeuroMarkets is an **algorithmic trading toolkit for Capital.com**, built around session handling, market data ingestion, technical analysis and bot operations.
+NeuroMarkets is a **developer-facing algorithmic trading toolkit** built around Capital.com session handling, market data ingestion, technical analysis and bot operations.
 
-This repository is public as a **clean developer-facing release** of the toolkit. It contains automation scripts, research utilities and monitoring components used to operate and evaluate trading workflows.
+This public release is meant to be useful to engineers, researchers and operators who want to study, extend or adapt a real trading workflow stack.
+
+It is not a polished SaaS product.
+
+It is the operating layer.
+
+## Why this repo exists
+
+Most trading repositories stop at toy scripts.
+
+NeuroMarkets goes further into the operational layer:
+
+- broker authentication
+- market data ingestion
+- indicator pipelines
+- execution helpers
+- bot workflows
+- evaluator logic
+- monitoring dashboards
+
+That makes it interesting not only for trading experiments, but also for:
+
+- workflow design
+- automation systems
+- bot operations
+- technical analysis tooling
+- applied market research
 
 ## What it covers
 
@@ -24,23 +50,6 @@ This repository is public as a **clean developer-facing release** of the toolkit
 | Strategy | Decision logic, validation and signal evaluation |
 | Bots | Automated execution, evaluator workflows and support tooling |
 | Monitoring | Local dashboard and operational state inspection |
-
-## Safety first
-
-- No credentials are stored in the repository.
-- Broker access must be provided through environment variables.
-- Test in `demo` mode before using real funds.
-- This project is a toolkit for research and automation workflows, **not financial advice**.
-
-## Project structure
-
-```text
-Demos/                Main scripts, bots and trading utilities
-dashboard.html        Local dashboard UI
-dashboard_server.py   Local server for dashboard/API state views
-pyproject.toml        Project metadata and dependencies
-requirements.txt      Alternative pip requirements
-```
 
 ## Core modules
 
@@ -53,6 +62,23 @@ requirements.txt      Alternative pip requirements
 | `Demos/EthBoy.py` | Main automated trading bot |
 | `Demos/Evaluador.py` | Position evaluation and positive-close automation |
 | `dashboard_server.py` | Local dashboard server for state inspection |
+
+## Project structure
+
+```text
+Demos/                Main scripts, bots and trading utilities
+dashboard.html        Local dashboard UI
+dashboard_server.py   Local server for dashboard/API state views
+pyproject.toml        Project metadata and dependencies
+requirements.txt      Alternative pip requirements
+```
+
+## Safety first
+
+- No credentials are stored in the repository.
+- Broker access must be provided through environment variables.
+- Test in `demo` mode before using real funds.
+- This project is for research and automation workflows, **not financial advice**.
 
 ## Environment variables
 
@@ -68,7 +94,7 @@ Create your own local environment and set these values before running the bots.
 | `DISCORD_WEBHOOK_URL` | Optional webhook for alert notifications |
 | `NEUROMARKETS_ALERT_SOUND` | Optional path to a local alert sound file |
 
-Template:
+Use the included template:
 
 ```text
 .env.example
@@ -133,6 +159,33 @@ http://localhost:8765
 ```
 
 It is intended for local monitoring and diagnostics.
+
+## Contribute
+
+This repository is open to contributors who want to improve the toolkit.
+
+Useful contribution areas include:
+
+- refactoring large modules into clearer boundaries
+- better strategy evaluation tooling
+- stronger test coverage around session and execution flows
+- better data pipeline reliability
+- dashboard and observability improvements
+- cleaner docs for new operators and developers
+
+If you want to contribute, start by opening an issue or a draft PR describing:
+
+1. what you want to improve
+2. why it matters
+3. how you plan to approach it
+
+Good first contributions:
+
+- docs cleanup
+- typing improvements
+- safer environment loading
+- modularization of long scripts
+- test harnesses for indicators and position logic
 
 ## Publication notes
 
