@@ -1,0 +1,42 @@
+[project]
+name = "neuromarkets"
+version = "0.1.0"
+description = "Automated trading platform for Capital.com using technical analysis and Hidden Markov Models"
+requires-python = ">=3.10"
+
+dependencies = [
+    # HTTP & API
+    "requests>=2.32",
+    "websocket-client>=1.8",
+    # Data
+    "pandas>=2.2",
+    "numpy>=2.2",
+    "pytz>=2024.1",
+    # Technical indicators
+    "ta>=0.11",
+    # Terminal UI
+    "rich>=13.9",
+    "colorama>=0.4.6",
+    # curses: parte de la stdlib en Linux/macOS; en Windows requiere windows-curses
+    "windows-curses>=2.3; sys_platform == 'win32'",
+    # Audio / notifications
+    "gtts>=2.5",
+    "pygame>=2.6",
+    # Charting (optional scripts)
+    "matplotlib>=3.10",
+    # Market data (optional scripts)
+    "yfinance>=0.2",
+    "psutil>=7.2.2",
+]
+
+[project.optional-dependencies]
+gui = [
+    "PyQt5>=5.15",
+]
+
+[tool.uv]
+package = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

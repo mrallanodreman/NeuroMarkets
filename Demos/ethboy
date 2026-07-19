@@ -1,0 +1,26 @@
+#!/bin/bash
+# EthBoy launcher - usa el venv local + auto-update desde GitHub
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# ─── AUTO-UPDATE ─────────────────────────────────────────────────────────────
+echo "[UPDATE] 🔍 Verificando actualizaciones..."
+if git fetch origin main --quiet 2>/dev/null; then
+    COMMITS_BEHIND=$(git rev-list HEAD..origin/main --count 2>/dev/null || echo "0")
+    if [[ "$COMMITS_BEHIND" -gt 0 ]]; then
+        echo "[UPDATE] ⬇️  Hay $COMMITS_BEHIND commit(s) nuevos. Actualizando..."
+        git pull origin main --rebase --quiet
+        if [[ $? -eq 0 ]]; then
+            echo "[UPDATE] ✅ Código actualizado. Lanzando versión nueva..."
+        else
+            echo "[UPDATE] ⚠️  Error en git pull. Lanzando versión local actual..."
+        fi
+    else
+        echo "[UPDATE] ✅ Ya estás en la última versión."
+    fi
+else
+    echo "[UPDATE] ⚠️  Sin conexión o sin acceso a repo. Lanzando versión local..."
+fi
+# ─────────────────────────────────────────────────────────────────────────────
+
+exec "$SCRIPT_DIR/../.venv/bin/python" "$SCRIPT_DIR/EthBoy.py" "$@"

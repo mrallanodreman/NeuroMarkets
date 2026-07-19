@@ -1,0 +1,76 @@
+# ─── Python ───────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# ─── Entorno virtual ──────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ─── Datos y reportes (archivos binarios/grandes) ─────────
+Reports/
+*.parquet
+*.pkl
+*.pickle
+
+# ─── Logs y estado temporal del bot ──────────────────────
+*.log
+*.lock
+process_data.jsonl
+evaluador_profittracker.json
+evaluador_profittracker_*.json
+eth_trade_cooldown.json
+capital_state.json
+last_seen_positions.json
+momentum_tick.json
+momentum_prices.log
+stream_messages.log
+profittracker*.json
+ai_trading_data.json
+
+# ─── Archivos de sesión API (no subir tokens) ─────────────
+.token_cache.json
+api_session.json
+
+# ─── Imágenes y archivos multimedia ───────────────────────
+*.png
+*.jpg
+*.jpeg
+*.svg
+
+# ─── VS Code (workspace-específico de esta máquina) ───────
+*.code-workspace
+
+# ─── Clone anidado de Documentation (no trackear repo dentro de repo) ──
+Documentation/
+
+# ─── Scripts de monitoreo con paths hardcodeados a esta máquina ────────
+.monitor_dataeth.sh
+install_auto_sync.sh
+
+# ─── Misceláneos ─────────────────────────────────────────
+missing_ranges.json
+web_closed_positions.json
+
+# ─── Dashboard local (no va al repo) ─────────────────────
+dashboard.html
+dashboard_server.py
+
+# ─── Experimentos HMM (NO SUBIR - experimental) ───────────
+HMMMarketRegime.py
+test_hmm_live.py
+demo_hmm_all_regimes.py
+backtest_hmm_standalone.py
+backtest_hmm_standalone.py.backup
+test_hmm_transitions.py
+hmm_*.pkl
+hmm_*.png
+hmm_*.json
+
+
+*.log

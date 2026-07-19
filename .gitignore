@@ -1,0 +1,70 @@
+# Entorno virtual Python
+venv/
+.venv/
+Demos/venv/
+Demos/.venv/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+
+# Build
+dist/
+build/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Archivos de datos / reportes generados
+Reports/
+*.json
+*.json.backup
+Demos/Reports/
+Demos/process_data.jsonl
+Demos/stream_messages.log
+Demos/closed_positions.txt
+Demos/web_closed_positions.txt
+Pricedata.csv
+alerta.mp3
+
+# Logs
+*.log
+Demos/*.log
+Demos/logs/
+
+# Lock
+*.lock
+Demos/*.lock
+
+# Scripts temporales / herramientas de diagnóstico
+Demos/check_git.py
+Demos/check_merge.py
+Demos/cleanup.py
+Demos/commit_merge.py
+Demos/show_commit.py
+Demos/gitcheck2.py
+Demos/fix_account.py
+Demos/get_accounts.sh
+
+# Archivos compilados
+Demos/EthConfig.cpython-312.pyc
+Demos/EthSession.py.corrupted
+Demos/EthConfig.py.backup
+
+# VS Code
+.vscode/
+
+# Tooling / local assistant metadata
+.opencode/
+
+# Internal sync / machine-specific helpers not needed in public releases
+Demos/auto_sync_monitor.py
+Demos/sync_core_files.sh
+
+# Backups
+*.backup
+*.backup_broken
