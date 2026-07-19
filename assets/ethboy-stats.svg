@@ -1,0 +1,30 @@
+<svg width="1280" height="280" viewBox="0 0 1280 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="280" rx="24" fill="#0B1020"/>
+  <rect x="18" y="18" width="1244" height="244" rx="18" fill="#11182E" stroke="#27324A"/>
+  <text x="38" y="48" fill="#A5B4FC" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.5">ETHBOY SNAPSHOT</text>
+  <text x="38" y="74" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="500">Archived operational metrics from a recorded run history used to contextualize the toolkit.</text>
+  <g transform="translate(38 106)">
+    <rect width="280" height="118" rx="18" fill="#151E35" stroke="#2C3753"/>
+    <text x="20" y="34" fill="#8FA3BF" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">PROCESS CYCLES</text>
+    <text x="20" y="78" fill="#E5E7EB" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800">50,569</text>
+    <text x="20" y="101" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="500">Observed in archived process_data.jsonl</text>
+  </g>
+  <g transform="translate(348 106)">
+    <rect width="280" height="118" rx="18" fill="#151E35" stroke="#2C3753"/>
+    <text x="20" y="34" fill="#8FA3BF" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">CLOSED POSITIONS</text>
+    <text x="20" y="78" fill="#E5E7EB" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800">305</text>
+    <text x="20" y="101" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="500">Captured by archived evaluator outputs</text>
+  </g>
+  <g transform="translate(658 106)">
+    <rect width="280" height="118" rx="18" fill="#151E35" stroke="#2C3753"/>
+    <text x="20" y="34" fill="#8FA3BF" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">BALANCE GROWTH</text>
+    <text x="20" y="78" fill="#22D3EE" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800">+$1.55</text>
+    <text x="20" y="101" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="500">From $7.14 to $8.69 in archived balance history</text>
+  </g>
+  <g transform="translate(968 106)">
+    <rect width="274" height="118" rx="18" fill="#151E35" stroke="#2C3753"/>
+    <text x="20" y="34" fill="#8FA3BF" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700">WIN RATE</text>
+    <text x="20" y="78" fill="#A78BFA" font-family="Arial, Helvetica, sans-serif" font-size="40" font-weight="800">57.9%</text>
+    <text x="20" y="101" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="500">From archived broker export trade rows</text>
+  </g>
+</svg>

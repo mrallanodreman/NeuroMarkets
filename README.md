@@ -19,6 +19,18 @@ It is not a polished SaaS product.
 
 It is the operating layer.
 
+## EthBoy in numbers
+
+<div align="center">
+
+<img src="./assets/ethboy-stats.svg" alt="EthBoy archived metrics" width="100%" />
+
+</div>
+
+These figures come from archived operational artifacts preserved while preparing the public release.
+
+They are here to show that NeuroMarkets is tied to real execution history, not only to isolated scripts.
+
 ## Why this repo exists
 
 Most trading repositories stop at toy scripts.
@@ -163,6 +175,8 @@ It is intended for local monitoring and diagnostics.
 ## Contribute
 
 This repository is open to contributors who want to improve the toolkit.
+
+If you like trading systems, market data pipelines, operator dashboards or execution tooling, there is room to build here.
 
 Useful contribution areas include:
 
