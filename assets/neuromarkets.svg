@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">Neuromarkets Logo</title>
+  <desc id="desc">Logo vectorial con una red neuronal integrada a una gráfica ascendente y el texto Neuromarkets.</desc>
+  <defs>
+    <linearGradient id="nmGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="52%" stop-color="#2563EB"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="chartGradient" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22D3EE"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g transform="translate(42 30)">
+    <rect x="0" y="0" width="260" height="260" rx="64" fill="#070B18"/>
+    <g stroke="url(#nmGradient)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <path d="M70 82 C92 52, 132 50, 151 76"/>
+      <path d="M70 82 C50 104, 50 143, 70 162"/>
+      <path d="M70 162 C90 190, 126 194, 151 174"/>
+      <path d="M151 76 C183 58, 211 83, 207 116"/>
+      <path d="M207 116 C222 145, 205 179, 175 184"/>
+      <path d="M151 76 L151 174"/>
+      <path d="M70 82 L118 111"/>
+      <path d="M70 162 L118 135"/>
+      <path d="M118 111 L151 76"/>
+      <path d="M118 135 L151 174"/>
+      <path d="M118 111 L118 135"/>
+      <path d="M151 124 L207 116"/>
+      <path d="M151 124 L175 184"/>
+    </g>
+    <g fill="#FFFFFF">
+      <circle cx="70" cy="82" r="9"/>
+      <circle cx="70" cy="162" r="9"/>
+      <circle cx="118" cy="111" r="8"/>
+      <circle cx="118" cy="135" r="8"/>
+      <circle cx="151" cy="76" r="9"/>
+      <circle cx="151" cy="124" r="9"/>
+      <circle cx="151" cy="174" r="9"/>
+      <circle cx="207" cy="116" r="9"/>
+      <circle cx="175" cy="184" r="9"/>
+    </g>
+    <path d="M42 211 L83 184 L114 195 L153 153 L180 166 L221 112" fill="none" stroke="url(#chartGradient)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)"/>
+    <path d="M203 112 H221 V130" fill="none" stroke="#22D3EE" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M42 226 H220" stroke="#253047" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(355 83)">
+    <text x="0" y="88" font-family="Inter, Arial, Helvetica, sans-serif" font-size="90" font-weight="800" letter-spacing="-4" fill="#0B1020">neuro</text>
+    <text x="255" y="88" font-family="Inter, Arial, Helvetica, sans-serif" font-size="90" font-weight="800" letter-spacing="-4" fill="url(#nmGradient)">markets</text>
+    <text x="5" y="145" font-family="Inter, Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="7" fill="#64748B">INTELLIGENCE FOR DIGITAL MARKETS</text>
+  </g>
+</svg>

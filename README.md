@@ -1,25 +1,38 @@
-# NeuroMarkets
+<div align="center">
 
-Algorithmic trading toolkit for Capital.com focused on market data ingestion, technical analysis, session handling and operator dashboards.
+<img src="./assets/neuromarkets.svg" alt="NeuroMarkets" width="100%" />
 
-This repository is a **developer toolkit and research workspace**. It contains automation scripts, analysis modules and monitoring utilities used to operate and evaluate trading workflows.
+![Python](https://img.shields.io/badge/Python-111827?style=for-the-badge&logo=python&logoColor=white)
+![Capital.com](https://img.shields.io/badge/Capital.com-111827?style=for-the-badge&logo=databricks&logoColor=white)
+![Trading Toolkit](https://img.shields.io/badge/Trading_Toolkit-111827?style=for-the-badge&logo=github&logoColor=white)
+![Research Workspace](https://img.shields.io/badge/Research_Workspace-111827?style=for-the-badge&logo=openai&logoColor=74AA9C)
 
-## Scope
+</div>
 
-- Capital.com authentication and session handling
-- Position management helpers
-- Market data ingestion and indicator calculation
-- Trading bots and evaluators
-- Local dashboard tooling for bot state inspection
+---
+
+NeuroMarkets is an **algorithmic trading toolkit for Capital.com**, built around session handling, market data ingestion, technical analysis and bot operations.
+
+This repository is public as a **clean developer-facing release** of the toolkit. It contains automation scripts, research utilities and monitoring components used to operate and evaluate trading workflows.
+
+## What it covers
+
+| Area | Description |
+| --- | --- |
+| Authentication | Capital.com session handling, account switching and token lifecycle |
+| Market data | Data ingestion, transformations and indicator pipelines |
+| Strategy | Decision logic, validation and signal evaluation |
+| Bots | Automated execution, evaluator workflows and support tooling |
+| Monitoring | Local dashboard and operational state inspection |
 
 ## Safety first
 
 - No credentials are stored in the repository.
 - Broker access must be provided through environment variables.
 - Test in `demo` mode before using real funds.
-- This project is for research and automation workflows, **not financial advice**.
+- This project is a toolkit for research and automation workflows, **not financial advice**.
 
-## Repository layout
+## Project structure
 
 ```text
 Demos/                Main scripts, bots and trading utilities
@@ -55,7 +68,11 @@ Create your own local environment and set these values before running the bots.
 | `DISCORD_WEBHOOK_URL` | Optional webhook for alert notifications |
 | `NEUROMARKETS_ALERT_SOUND` | Optional path to a local alert sound file |
 
-See `.env.example` for a template.
+Template:
+
+```text
+.env.example
+```
 
 ## Quick start
 
