@@ -6,6 +6,7 @@ Abre http://localhost:8765 en el navegador.
 """
 import csv
 import glob
+import hmac
 import http.server
 import json
 import os
@@ -879,10 +880,23 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass  # silenciar logs del servidor
 
+    def _state_authorized(self):
+        expected = os.environ.get("NEUROMARKETS_STATE_TOKEN", "").strip()
+        provided = self.headers.get("X-NeuroMarkets-Token", "").strip()
+        if not expected:
+            self.send_error(503, "State API not configured")
+            return False
+        if not provided or not hmac.compare_digest(provided, expected):
+            self.send_error(401, "Unauthorized")
+            return False
+        return True
+
     def do_GET(self):
         if self.path == "/" or self.path == "/index.html":
             self._serve_file(DASHBOARD_HTML, "text/html")
         elif self.path == "/api/state":
+            if not self._state_authorized():
+                return
             data = get_state()
             self._json_response(data)
         elif self.path == "/api/growth":
