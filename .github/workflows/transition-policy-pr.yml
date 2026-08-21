@@ -1,0 +1,37 @@
+name: Validate transition-state policy
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  apply-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Apply strategy patch
+        run: python tools/apply_transition_state_patch.py
+
+      - name: Syntax check
+        run: python -m py_compile Demos/EthStrategy.py
+
+      - name: Commit patched strategy back to PR branch
+        shell: bash
+        run: |
+          if git diff --quiet -- Demos/EthStrategy.py; then
+            echo 'No strategy changes.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Demos/EthStrategy.py
+          git commit -m 'fix(strategy): unify transition priority for EthBoy and Carmelo'
+          git push origin HEAD:${{ github.head_ref }}
