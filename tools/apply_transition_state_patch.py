@@ -1,0 +1,100 @@
+from pathlib import Path
+
+PATH = Path("Demos/EthStrategy.py")
+MARKER = "TRANSITION_STATE_POLICY_V2"
+
+
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    if old not in text:
+        raise RuntimeError(f"anchor not found: {label}")
+    return text.replace(old, new, 1)
+
+
+def main() -> None:
+    s = PATH.read_text(encoding="utf-8")
+    if MARKER in s:
+        print("transition-state policy already present")
+        return
+
+    s = replace_once(
+        s,
+        '''        # 🎯 ZONAS DE RESISTENCIA\n        zona_resistencia_critica = dist_to_resistance_pct <= 0.5\n        zona_resistencia_cercana = 0.5 < dist_to_resistance_pct <= 1.5\n\n        # 🚨 DETECCIÓN DE SOPORTE ROTO (precio debajo del mínimo de 75H)\n        soporte_roto = current_price < support_level\n''',
+        '''        # 🎯 ZONAS DE RESISTENCIA\n        zona_resistencia_critica = dist_to_resistance_pct <= 0.5\n        zona_resistencia_cercana = 0.5 < dist_to_resistance_pct <= 1.5\n        zona_rechazo_probable = dist_to_resistance_pct <= 2.0\n\n        # 🚨 RUPTURAS REALES: los overrides requieren ruptura + ADX + score\n        soporte_roto = current_price < support_level\n        resistencia_rota = current_price > resistance_level\n''',
+        "support/resistance",
+    )
+
+    s = replace_once(
+        s,
+        '''        # Inicializar variables de confianza y candidatos\n        confianza = 0\n        confianza_score = 0  # Score final para retornar\n        detalles = []\n        candidato_signal = None  # "BUY" | "SELL" | None\n        candidato_reason = ""\n''',
+        '''        # Inicializar variables de confianza, prioridad y máquina de estados\n        # TRANSITION_STATE_POLICY_V2\n        confianza = 0\n        confianza_score = 0\n        detalles = []\n        candidato_signal = None\n        candidato_reason = ""\n        candidato_priority = 0\n        exhaustion_detected = False\n        transition_state = "HOLD"\n\n        PRIORITY_CONTINUATION = 10\n        PRIORITY_EXHAUSTION = 20\n        PRIORITY_REVERSAL = 30\n\n        def set_candidate(direction, candidate_reason, priority, state=None):\n            nonlocal candidato_signal, candidato_reason, candidato_priority, transition_state\n            if priority >= candidato_priority:\n                candidato_signal = direction\n                candidato_reason = candidate_reason\n                candidato_priority = priority\n                transition_state = state or direction\n                return True\n            return False\n''',
+        "candidate state",
+    )
+
+    start_marker = "        ## 🔥 **DECISIÓN FINAL CON VALIDACIÓN MULTI-NIVEL**"
+    end_marker = "        # 🎯 CÁLCULO DE SCORE UNIFICADO"
+    a = s.find(start_marker)
+    b = s.find(end_marker, a)
+    if a < 0 or b < 0:
+        raise RuntimeError("decision block anchors not found")
+
+    decision = '''        # ═══════════════════════════════════════════════════════════\n        # DECISIÓN POR PRIORIDAD: REVERSIÓN > AGOTAMIENTO > CONTINUACIÓN\n        # Ninguna rama intermedia autoriza BUY/SELL ni retorna directamente.\n        # ═══════════════════════════════════════════════════════════\n\n        if "REBOTE CONFIRMADO FUERTE" in trend:\n            set_candidate("BUY", "Rebote confirmado fuerte", PRIORITY_REVERSAL, "BUY")\n        elif "REBOTE TEMPRANO" in trend:\n            set_candidate("BUY", "Rebote temprano en soporte crítico", PRIORITY_REVERSAL, "BUY_CONFIRMING")\n\n        if "REVERSIÓN CONFIRMADA" in trend:\n            set_candidate("SELL", "Reversión confirmada en resistencia", PRIORITY_REVERSAL, "SELL")\n\n        try:\n            bearish_exhaustion = (\n                "Tendencia bajista confirmada" in trend_confirmed and\n                zona_rebote_probable and\n                (\n                    float(h_latest.get("RSI_7", 50)) <= 35 or\n                    float(l_latest.get("RSI_7", 50)) <= 30 or\n                    float(l_latest.get("MACD_Histogram", 0)) > float(l_prev.get("MACD_Histogram", 0))\n                )\n            )\n        except Exception:\n            bearish_exhaustion = False\n\n        try:\n            bullish_exhaustion = (\n                "Tendencia alcista confirmada" in trend_confirmed and\n                zona_rechazo_probable and\n                (\n                    float(h_latest.get("RSI_7", 50)) >= 65 or\n                    float(l_latest.get("RSI_7", 50)) >= 70 or\n                    float(l_latest.get("MACD_Histogram", 0)) < float(l_prev.get("MACD_Histogram", 0))\n                )\n            )\n        except Exception:\n            bullish_exhaustion = False\n\n        if bearish_exhaustion and candidato_priority < PRIORITY_REVERSAL:\n            exhaustion_detected = True\n            candidato_signal = None\n            candidato_reason = "Agotamiento bajista cerca de soporte"\n            candidato_priority = PRIORITY_EXHAUSTION\n            transition_state = "SELL_EXHAUSTION"\n            signal = "HOLD ⚠️"\n            reason += " 🟠 SELL_EXHAUSTION: caída agotándose cerca del piso; continuación bloqueada hasta ruptura o reversión confirmada."\n\n        if bullish_exhaustion and candidato_priority < PRIORITY_REVERSAL:\n            exhaustion_detected = True\n            candidato_signal = None\n            candidato_reason = "Agotamiento alcista cerca de resistencia"\n            candidato_priority = PRIORITY_EXHAUSTION\n            transition_state = "BUY_EXHAUSTION"\n            signal = "HOLD ⚠️"\n            reason += " 🟠 BUY_EXHAUSTION: subida agotándose cerca del techo; continuación bloqueada hasta ruptura o reversión confirmada."\n\n        if "Tendencia bajista confirmada" in trend_confirmed:\n            tres_velas_subiendo = False\n            if len(historical_data) >= 3:\n                vela_1 = historical_data.iloc[-3]["Close"]\n                vela_2 = historical_data.iloc[-2]["Close"]\n                vela_3 = historical_data.iloc[-1]["Close"]\n                tres_velas_subiendo = (vela_1 < vela_2 < vela_3)\n\n            try:\n                pullback_rechazado = (\n                    h_latest["EMA_20"] < h_latest["EMA_50"] and\n                    h_latest.get("ADX", 0) > 25 and\n                    l_latest["Close"] < l_prev["Close"] and\n                    l_latest["High"] < l_prev["High"] and\n                    l_latest.get("RSI_7", 0) > 30\n                )\n            except Exception:\n                pullback_rechazado = False\n\n            if pullback_rechazado and candidato_priority < PRIORITY_EXHAUSTION:\n                set_candidate("SELL", "Continuación bajista (drenado)", PRIORITY_CONTINUATION, "SELL")\n                reason += " 📉 Continuación bajista limpia (drenado): estructura descendente + ADX alto."\n\n            if candidato_priority < PRIORITY_REVERSAL:\n                if (\n                    "REBOTE CONFIRMADO" in trend and\n                    latest_data["RSI_7"] < 40 and\n                    latest_data["MACD_Histogram"] > previous_data["MACD_Histogram"] and\n                    latest_data["Volume"] > l_volume_mean * 1.3\n                ):\n                    set_candidate("BUY", "Rebote confirmado óptimo", PRIORITY_REVERSAL, "BUY")\n                    reason += " 🚀 REBOTE CONFIRMADO en soporte con validación multi-nivel."\n                elif (\n                    latest_data["RSI"] < 38 and\n                    latest_data["MACD"] > latest_data["MACD_Signal"] and\n                    latest_data["MACD_Histogram"] > previous_data["MACD_Histogram"] and\n                    latest_data["Volume"] > l_volume_mean * 1.3\n                ):\n                    set_candidate("BUY", "Entrada agresiva RSI <38", PRIORITY_REVERSAL, "BUY_CONFIRMING")\n                    reason += " 🎯 BUY_CONFIRMING: RSI <38 + MACD alcista + volumen confirmado."\n                elif (\n                    tres_velas_subiendo and\n                    latest_data["RSI"] < 40 and latest_data["RSI"] > previous_data["RSI"] and\n                    latest_data["MACD_Histogram"] > 0 and\n                    latest_data["Volume"] > l_volume_mean\n                ):\n                    set_candidate("BUY", "Piso confirmado 3 velas", PRIORITY_REVERSAL, "BUY_CONFIRMING")\n                    reason += " 📊 BUY_CONFIRMING: 3 velas subiendo + RSI recuperando + volumen."\n\n            if candidato_priority < PRIORITY_EXHAUSTION and candidato_signal is None:\n                if "Microtendencia alcista" in trend:\n                    transition_state = "HOLD"\n                    signal = "HOLD ⚠️"\n                    reason += " ⚠️ HOLD: microtendencia alcista dentro de macro bajista sin confirmación suficiente."\n                else:\n                    set_candidate("SELL", "Tendencia bajista sin reversión", PRIORITY_CONTINUATION, "SELL")\n                    reason += " 🔻 Tendencia bajista confirmada sin reversión validada."\n\n        elif "Tendencia alcista confirmada" in trend_confirmed:\n            try:\n                pullback_alcista_reanudado = (\n                    h_latest["EMA_20"] > h_latest["EMA_50"] and\n                    h_latest.get("ADX", 0) > 25 and\n                    l_latest["Close"] > l_prev["Close"] and\n                    l_latest["Low"] > l_prev["Low"] and\n                    l_latest.get("RSI_7", 100) < 70\n                )\n            except Exception:\n                pullback_alcista_reanudado = False\n\n            if pullback_alcista_reanudado and candidato_priority < PRIORITY_EXHAUSTION:\n                set_candidate("BUY", "Continuación alcista tras pullback", PRIORITY_CONTINUATION, "BUY")\n                reason += " 📈 Continuación alcista limpia: mínimos ascendentes + ADX alto."\n\n            cerca_resistencia = abs(current_price - resistance_level) / resistance_level <= 0.005\n            if candidato_priority < PRIORITY_REVERSAL and (\n                "REVERSIÓN CONFIRMADA" in trend and\n                cerca_resistencia and\n                latest_data["RSI_7"] > 55 and\n                latest_data["MACD_Histogram"] < previous_data["MACD_Histogram"] and\n                latest_data["Volume"] > l_volume_mean * 1.2\n            ):\n                set_candidate("SELL", "Reversión en resistencia", PRIORITY_REVERSAL, "SELL")\n                reason += " 📉 REVERSIÓN CONFIRMADA en resistencia con validación multi-nivel."\n\n            if candidato_priority < PRIORITY_EXHAUSTION and candidato_signal is None:\n                if "Microtendencia bajista" in trend:\n                    transition_state = "HOLD"\n                    signal = "HOLD ⚠️"\n                    reason += " ⚠️ HOLD: microtendencia bajista dentro de macro alcista sin reversión confirmada."\n                else:\n                    set_candidate("BUY", "Tendencia alcista confirmada", PRIORITY_CONTINUATION, "BUY")\n                    reason += " 📈 Tendencia alcista confirmada con momentum sostenido."\n\n        elif candidato_priority == 0:\n            if "microtendencia alcista" in trend.lower() and "impulso alcista fuerte" in trend.lower():\n                set_candidate("BUY", "Microtendencia alcista fuerte", PRIORITY_CONTINUATION, "BUY")\n            elif "microtendencia bajista" in trend.lower() and "impulso bajista fuerte" in trend.lower():\n                set_candidate("SELL", "Microtendencia bajista fuerte", PRIORITY_CONTINUATION, "SELL")\n\n'''
+    s = s[:a] + decision + s[b:]
+
+    s = replace_once(
+        s,
+        '        if candidato_signal in ["BUY", "SELL"]:\n',
+        '        if candidato_signal in ["BUY", "SELL"] and not exhaustion_detected:\n',
+        "unified authorizer",
+    )
+
+    mstart = s.find("        # Determinar market_bias para que la capa de decisión lo utilice")
+    mend = s.find(
+        "        # ═══════════════════════════════════════════════════════════\n        # 🚨 FILTRO DE EXTENSIÓN EXTREMA",
+        mstart,
+    )
+    if mstart < 0 or mend < 0:
+        raise RuntimeError("market_bias block anchors not found")
+    market_bias_block = '''        # market_bias deriva del estado efectivo; agotamiento/reversión tiene precedencia sobre HTF.\n        market_bias = None\n        try:\n            if transition_state in ("BUY", "BUY_CONFIRMING"):\n                market_bias = "BUY"\n            elif transition_state in ("SELL", "SELL_CONFIRMING"):\n                market_bias = "SELL"\n            elif transition_state == "SELL_EXHAUSTION":\n                market_bias = "BUY_CONFIRMING"\n            elif transition_state == "BUY_EXHAUSTION":\n                market_bias = "SELL_CONFIRMING"\n            elif candidato_signal in ("BUY", "SELL"):\n                market_bias = candidato_signal\n        except Exception:\n            market_bias = None\n\n'''
+    s = s[:mstart] + market_bias_block + s[mend:]
+
+    s = replace_once(
+        s,
+        '''                        if _giro_confirmado:\n                            # Giro real confirmado en HTF → emitir SELL directamente\n                            signal = "SELL ❌"\n                            reason = (\n                                f"🔻 EXTENSIÓN EXTREMA + GIRO CONFIRMADO: precio +{_ext_pct:.1f}% sobre EMA20 HTF "\n                                f"(RSI {_rsi_h:.1f}), MACD_H giró negativo ({_macd_h:.4f} < {_macd_prev:.4f}). "\n                                f"Señal SELL generada. | "\n                            ) + reason\n                            print(f"[EXTENSION→SELL] ✅ Giro confirmado: +{_ext_pct:.1f}% EMA20, MACD_H={_macd_h:.4f}<{_macd_prev:.4f}, RSI={_rsi_h:.1f}")\n''',
+        '''                        if _giro_confirmado:\n                            transition_state = "SELL_CONFIRMING"\n                            market_bias = "SELL_CONFIRMING"\n                            signal = "HOLD ⚠️"\n                            reason = (\n                                f"🔻 EXTENSIÓN EXTREMA + GIRO CONFIRMADO: precio +{_ext_pct:.1f}% sobre EMA20 HTF "\n                                f"(RSI {_rsi_h:.1f}), MACD_H giró negativo ({_macd_h:.4f} < {_macd_prev:.4f}). "\n                                f"SELL_CONFIRMING; esperando autorización del filtro unificado en el siguiente ciclo. | "\n                            ) + reason\n                            print(f"[EXTENSION→SELL_CONFIRMING] +{_ext_pct:.1f}% EMA20, MACD_H={_macd_h:.4f}<{_macd_prev:.4f}, RSI={_rsi_h:.1f}")\n''',
+        "extension direct sell",
+    )
+
+    s = replace_once(
+        s,
+        '                    if _override_adx > 28 and confianza_score >= 5:\n                        print(f"[ZONA REBOTE OVERRIDE] ✅ SELL permitido: precio a {dist_support:.2f}% del soporte pero ADX {_override_adx:.1f} > 28 + Score {confianza_score}/8 — ruptura bajista")\n',
+        '                    if soporte_roto and _override_adx > 28 and confianza_score >= 5:\n                        print(f"[ZONA REBOTE OVERRIDE] ✅ SELL permitido: soporte REALMENTE roto + ADX {_override_adx:.1f} > 28 + Score {confianza_score}/8")\n',
+        "support override",
+    )
+
+    persist_anchor = "        # Persistir en self para que EthBoy pueda leerlo\n"
+    idx = s.find(persist_anchor)
+    if idx < 0:
+        raise RuntimeError("persistence anchor not found")
+    mirror = '''        # 🚫 BLOQUEO SIMÉTRICO: BUY cerca de resistencia exige ruptura real + ADX + score.\n        try:\n            if signal == "BUY ✅":\n                dist_resistance = float(dist_to_resistance_pct if 'dist_to_resistance_pct' in locals() else 999)\n                if dist_resistance <= 2.0:\n                    _buy_override_adx = float(historical_data.iloc[-1].get("ADX", 0)) if historical_data is not None and not historical_data.empty else 0\n                    if resistencia_rota and _buy_override_adx > 28 and confianza_score >= 5:\n                        print(f"[RESISTENCIA OVERRIDE] ✅ BUY permitido: resistencia REALMENTE rota + ADX {_buy_override_adx:.1f} > 28 + Score {confianza_score}/8")\n                    else:\n                        signal = "HOLD ⚠️"\n                        transition_state = "BUY_CONFIRMING"\n                        reason = f"🚫 REJECT BUY: cerca de resistencia ({dist_resistance:.2f}%) sin ruptura confirmada + ADX/score suficientes. | " + reason\n                        print(f"[BLOQUEO RESISTENCIA] BUY rechazado: {dist_resistance:.2f}% de resistencia")\n        except Exception as e:\n            print(f"[ERROR FILTRO RESISTENCIA] {e}")\n\n'''
+    s = s[:idx] + mirror + s[idx:]
+
+    s = replace_once(
+        s,
+        '        self.market_bias = market_bias\n        self.market_regime = market_regime\n',
+        '        self.market_bias = market_bias\n        self.market_regime = market_regime\n        self.transition_state = transition_state\n',
+        "persist transition state",
+    )
+
+    s = replace_once(
+        s,
+        '            "confianza_score": confianza_score\n        }\n\n\n    def calculate_dynamic_sl_tp',
+        '            "confianza_score": confianza_score,\n            "transition_state": transition_state\n        }\n\n\n    def calculate_dynamic_sl_tp',
+        "return transition state",
+    )
+
+    PATH.write_text(s, encoding="utf-8")
+    print(f"patched {PATH}")
+
+
+if __name__ == "__main__":
+    main()
